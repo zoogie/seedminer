@@ -24,7 +24,7 @@ u32 check_finish(){
 
 u32 save_progress(u64 start, u64 size, u32 progress){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08lX-%09lX.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
 	FILE *f=fopen(savename,"wb+");
 	if(f){
 		printf("Saving progress to file %s ...\n\n", savename);
@@ -40,13 +40,16 @@ u32 save_progress(u64 start, u64 size, u32 progress){
 
 u32 load_progress(u64 start, u64 size){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08lX-%09lX.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
 	FILE *f=fopen(savename,"rb");
 	if(f){
 		printf("Loading %s ...\n", savename);
 		fread(&save_offset, 1, 4, f);
 		fclose(f);
-		printf("Resuming at msed3 offset +%u\n\n", save_offset);
+		
+		s32 neg = save_offset&1 ? -1 : 1;
+		s32 offset_converted = neg*((s32)save_offset+1)/2;
+		printf("Resuming at msed3 offset %d\n\n", offset_converted);
 	}
 	else{
 		printf("Error: could not open %s\n", savename);
@@ -57,35 +60,24 @@ u32 load_progress(u64 start, u64 size){
 }
 
 s32 bf_block(u32 offset, u64 start, u64 size){ 
+	//size=0x800000; 
 	u64 finish=start+size;
-	s32 oob_check=0;
 	
-	printf("At msed2 address 0x%08lX, size 0x%09lX:\n", start, size);
+	s32 neg = offset&1 ? -1 : 1;
+	s32 offset_converted = neg*((s32)offset+1)/2;
+	
+	if(offset_converted+((s32)keyy[3]&0x7FFFFFFF) < 0) return -2; //oob check
+	
+	printf("At msed2 address 0x%08I64X, size 0x%09I64X:\n", start, size);
 	
 	u32 original=keyy[3];
-	printf("Brute forcing msed3 offset +%u (0x%08X)...\n", offset, keyy[3]+offset);
-	keyy[3]+=offset;
+	printf("Brute forcing msed3 offset %d (0x%08X)...\n", offset_converted, keyy[3]+offset_converted);
+	keyy[3]+=offset_converted;
 	for(u64 i=start;i<finish;i++){
 		keyy[2]=i;
 		SHA256(keyy, 0x10, sha256);
 		if(!memcmp(sha256, ID0, 0x10))return 0;
 	}
-	
-	if(offset==0)goto skip0;  //there is no negative zero
-	
-	keyy[3]=original;
-	printf("Brute forcing msed3 offset %d (0x%08X)...\n", -offset, keyy[3]-offset);
-	
-	oob_check=(keyy[3]&0x7FFFFFFF)-offset;
-	if(oob_check<0)goto skip0;  //prevent u32 wrap-around even though it's very unlikely
-	
-	keyy[3]-=offset;
-	for(u64 i=start;i<finish;i++){
-		keyy[2]=i;
-		SHA256(keyy, 0x10, sha256);
-		if(!memcmp(sha256, ID0, 0x10))return 0;
-	}
-	skip0:
 	
 	keyy[3]=original;
 	return -1;
@@ -95,9 +87,10 @@ int main(int argc, char **argv)
 {
 	u64 start=0;
 	u64 size=0;
+	int ret=1;
 	
 	if(argc!=3){
-		printf("stage3.exe <start_offset> <size>\nNote that all values interpreted as hex\n");
+		printf("seedminer.exe <start_offset> <size>\nNote that all values interpreted as hex\n");
 		return 1;
 	}
 	
@@ -117,10 +110,13 @@ int main(int argc, char **argv)
 	
 	load_progress(start, size);
 	
+	//keyy[3]=0x80000004;
+	
 	for(u32 i=save_offset;i<0x100000;i++){
-		if(!bf_block(i, start, size))break;
+		ret = bf_block(i, start, size);
+		if(!ret)break;
 		if(check_finish()) return 0;
-		save_progress(start, size, i+1);
+		if(ret == -1) save_progress(start, size, i+1);
 	}
 	
 	printf("\nKEYY HIT!!!\n");

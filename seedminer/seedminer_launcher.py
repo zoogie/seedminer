@@ -29,7 +29,7 @@ if(len(sys.argv) < 2 or len(sys.argv) > 3):
 	print("\nCommand line error:")
 	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
 	print("Ex: python %s cpu 4" % (sys.argv[0]))
-	exit()
+	sys.exit(0)
 
 def hash_clusterer():
 	buf=""
@@ -69,7 +69,7 @@ def hash_clusterer():
 	print("")
 	if(hashcount>1):
 		print("Too many ID0 dirs! (%d)\nMove the ones your 3ds isn't using!" % (hashcount))
-		exit()
+		sys.exit(0)
 
 	if(hashcount==1):
 		print("Hash added!")
@@ -85,7 +85,7 @@ def hash_clusterer():
 
 if(sys.argv[1].lower()=="id0"):
 	hash_clusterer()
-	exit()
+	sys.exit(0)
 
 f=open("saves/lfcs.dat","rb")
 buf=f.read()
@@ -177,7 +177,7 @@ seed=f.read()
 f.close()
 if len(seed) != 0x1000:
 	print("Error: movable_part1.sed is not 4KB")
-	exit()
+	sys.exit(0)
 	
 if seed[4]=="\x02":
 	print("New3DS")
@@ -187,7 +187,7 @@ elif seed[4]=="\x00":
 	isNew=False
 else:
 	print("Error: can't read u8 msed[4]")
-	exit()
+	sys.exit(0)
 
 	
 expand()
@@ -235,7 +235,7 @@ if(sys.argv[1].lower() == "gpu"):
 	command="bfcl msky %s %s" % (keyy,ID0)
 	print(command)
 	os.system(command)
-	exit()
+	sys.exit(0)
 elif(sys.argv[1].lower()=="cpu"):
 	print("CPU selected")
 	pass
@@ -243,11 +243,11 @@ else:
 	print("\nCommand line error:")
 	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
 	print("Ex: python %s cpu 4" % (sys.argv[0]))
-	exit()
+	sys.exit(0)
 
 if(which_computer_is_this >= number_of_computers):
 	print("You can't assign an id # to a computer that doesn't exist")
-	exit()
+	sys.exit(0)
 
 MAX=0x100000000
 address_begin=0

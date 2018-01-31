@@ -39,6 +39,8 @@ def hash_clusterer():
 	trim=0
 	try:
 		trim=file.index("\x00"*0x40)
+		if(trim<0x10):
+			trim=0x10
 		file=file[:trim]
 	except:
 		pass

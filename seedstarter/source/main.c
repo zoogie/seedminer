@@ -59,16 +59,16 @@ int strlen16(u16* strarg)
    return str-strarg;
 }
 
-void uds_dump()
+void data_dump()
 {
 	Result ret=0;
-	ret = udsInit(0x3000, NULL);
+	ret = cfguInit();
+	printf("cfgu %08X\n",(int)ret);
 	if(R_FAILED(ret))
 	{
-		printf("\nudsInit failed: 0x%08x.\nDid you turn wifi on?\n\n", (unsigned int)ret);
+		printf("\ncfguInit failed: 0x%08x\n", (unsigned int)ret);
 		return;
 	}
-	udsNodeInfo tmpnode;
 
 	Handle dirHandle;
 	FS_Archive sdmcArchive;
@@ -76,18 +76,18 @@ void uds_dump()
 	u32 entriesRead=0;
 	char hash[0x21]={0};
 	int validHash=0;
+	u64 lfcs=0;
 		
-	ret = udsGenerateNodeInfo(&tmpnode, NULL);
-	printf("udsGenerateNodeInfo %08X\n",(int)ret);
+	ret = CFGU_GetConfigInfoBlk2(8, 0x00090001, (u8*)&lfcs);
+	printf("cfgu_getblk2: %08X\n",(int)ret);
 	if(ret){
-		printf("udsGenerateNodeInfo failed! Exiting...\n");
+		printf("GetConfigInfoBlk2 failed! Exiting...\n");
 		return;
 	}
 	u8 filebuffer[0x1000]={0};
-	u64 seed=0;
-	seed=tmpnode.uds_friendcodeseed & 0xFFFFFFFFFFLL;
-	printf("\nLFCS  %016llX\n\n",seed);
-	memcpy(filebuffer, &seed, 8);
+	printf("LFCS  %016llX\n\n",lfcs);
+	lfcs &= 0xFFFFFFFFFFLL;
+	memcpy(filebuffer, &lfcs, 8);
 	int c;
 	
 	ret = FSUSER_OpenArchive(&sdmcArchive, ARCHIVE_SDMC, (FS_Path){ PATH_EMPTY, 1, (u8*)"" });
@@ -126,8 +126,6 @@ void uds_dump()
 		printf("\nERROR!!\nIncorrect number of hash dirs found! (%d)\nMake sure there is *only* one!\n", validHash);
 	}
 
-	udsDestroyNetwork();
-	//udsDisconnectNetwork();
 }
 
 Result friends_dump(){
@@ -137,6 +135,12 @@ Result friends_dump(){
 
 	res = frdInit();
 	printf("frd:u %08X\n",(int)res);
+	
+	if(res) {
+		printf("ERROR: frd:u could not be initialized\n");
+		printf("to get this service, app-takeover may be required\n\n");
+		return 1;
+	}
 	
 	size_t friendCount = 0;
 	FriendKey friendKey[FRIEND_LIST_SIZE];
@@ -193,7 +197,10 @@ Result msed_data(){
 	//https://github.com/joel16/3DS-Recovery-Tool Thanks to Joel16 for it.
 	res = copy_file( "/private/movable.sed", "/seedstarter/movable.sed");
 	
-	if(res) printf("Movable.sed dump failed.\n");
+	if(res){ 
+		printf("Movable.sed dump failed.\n");
+		printf("no cfw or luma3DS 9.0+ possible reasons\n\n");
+	}
 	else{
 		srand(time(NULL));
 		u32 rnd=rand();
@@ -229,6 +236,12 @@ Result ctcert_dump(){
 	res = amGetServiceHandle();
 	printf("am:net %08X\n",(int)res);
 	
+	if(res){
+		printf("ERROR: am:net failed\n");
+		printf("no cfw or luma3DS 9.0+ possible reasons\n\n");
+		return 1;
+	}
+	
 	res = amNetGetDeviceCert(ctcert); //thanks joel16 for this
 	printf("getcert %08X\n",(int)res);
 	memcpy(ctcert+0x180, "ctcert privkey  goes here", 25);
@@ -248,11 +261,11 @@ void showMenu(){
 	printf("3DS-Recovery-Tool by Joel16\n");
 	printf("Please run with Luma3DS 9.0+ if possible\n\n");
 	
-	printf("      A dump LFCS from udsNodeInfo\n");
-	printf("      B dump LFCS from friendlist\n");
-	printf("  CFW-X dump msed_data.bin\n");
-	printf("  CFW-Y dump ctcert.bin (no privkey)\n");
-	printf("  START exit app\n\n");
+	printf("    A dump LFCS from GetConfigInfoBlk2\n");
+	printf("    B dump LFCS from friendlist\n");
+	printf("CFW-X dump msed_data.bin\n");
+	printf("CFW-Y dump ctcert.bin (no privkey)\n");
+	printf("START exit app\n\n");
 }
 
 void waitKey(){
@@ -288,7 +301,7 @@ int main(int argc, char **argv)
 		if (kDown & KEY_START)
 			break;
 	    else if (kDown & KEY_A){
-			uds_dump();
+			data_dump();
 			waitKey();
 		}
 		else if (kDown & KEY_B){

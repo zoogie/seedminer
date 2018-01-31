@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <stdlib.h>
 #include <openssl/sha.h>
 #include "types.h"
@@ -128,12 +129,13 @@ int main(int argc, char **argv)
 	fclose(f);
 	printf("Done!\n");
 
+	srand(time(NULL));
 	char filename[0x100]={0};
 	u32 lfcs=keyy[0];
 	u32 lfcs_blk=lfcs>>12;
-	s32 error=(lfcs/5)-keyy[3];
+	s32 error=(lfcs/5)-((s32)keyy[3]&0x7FFFFFFF);
 	u32 seedtype=(keyy[3]&0x80000000)>>31;
-	snprintf(filename, 0x100, "msed_data_%08X.bin",lfcs_blk);
+	snprintf(filename, 0x100, "msed_data_%08X.bin",rand());
 	f = fopen(filename, "wb");
 	fwrite(&lfcs_blk, 1, 4, f);
 	fwrite(&error, 1, 4, f);

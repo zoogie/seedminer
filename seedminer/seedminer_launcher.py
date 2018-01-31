@@ -25,6 +25,12 @@ which_computer_is_this=2
 #---------------------------------------------------------------------------
 #Don't edit below this line unless you know what you're doing (stage2 begin)
 #---------------------------------------------------------------------------
+if(len(sys.argv) < 2 or len(sys.argv) > 3):
+	print("\nCommand line error:")
+	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
+	print("Ex: python %s cpu 4" % (sys.argv[0]))
+	exit()
+
 def hash_clusterer():
 	buf=""
 	hashcount=0
@@ -216,10 +222,9 @@ print("movable_part2.sed generation success")
 #---------------------------------------------------------------------------
 #stage3 launcher (stage2 end)
 #---------------------------------------------------------------------------
-
-if(len(sys.argv) != 2):
-	print("Usage: python2 %s [cpu|gpu]" % (sys.argv[0]))
-	exit()
+if(len(sys.argv)==3):
+	process_count=int(sys.argv[2])
+	
 if(sys.argv[1].lower() == "gpu"):
 	print("GPU selected")
 	f=open("movable_part2.sed","rb")
@@ -235,9 +240,10 @@ elif(sys.argv[1].lower()=="cpu"):
 	print("CPU selected")
 	pass
 else:
-	print("Usage: python2 %s [cpu|gpu]" % (sys.argv[0]))
+	print("\nCommand line error:")
+	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
+	print("Ex: python %s cpu 4" % (sys.argv[0]))
 	exit()
-
 
 if(which_computer_is_this >= number_of_computers):
 	print("You can't assign an id # to a computer that doesn't exist")

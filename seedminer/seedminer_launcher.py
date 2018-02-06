@@ -27,8 +27,10 @@ which_computer_is_this=2
 #---------------------------------------------------------------------------
 if(len(sys.argv) < 2 or len(sys.argv) > 3):
 	print("\nCommand line error:")
-	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
+	print("Usage: python %s cpu|gpu|id0 [# cpu processes] [ID0 hash]" % (sys.argv[0]))
 	print("Ex: python %s cpu 4" % (sys.argv[0]))
+	print("Ex: python %s gpu" % (sys.argv[0]))
+	print("Ex: python %s id0 abcdef0123456789abcdef0123456789" % (sys.argv[0]))
 	sys.exit(0)
 
 def hash_clusterer():
@@ -51,7 +53,11 @@ def hash_clusterer():
 	except:
 		pass
 	
-	dirs=glob.glob("*")
+	if(len(sys.argv)==3):
+		dirs=[]
+		dirs.append(sys.argv[2])
+	else:
+		dirs=glob.glob("*")
 
 	for i in dirs:
 		try:
@@ -172,9 +178,14 @@ def getMsed3Estimate(n,isNew):
 
 isNew=False
 msed3=0
+noobtest="\x00"*0x20
 f=open("movable_part1.sed","rb")
 seed=f.read()
 f.close()
+if(noobtest in seed[0x10:0x30]):
+	print("Error: ID0 has been left blank, please add an ID0")
+	print("Ex: python %s id0 abcdef0123456789abcdef0123456789" % (sys.argv[0]))
+	sys.exit(0)
 if len(seed) != 0x1000:
 	print("Error: movable_part1.sed is not 4KB")
 	sys.exit(0)
@@ -241,8 +252,10 @@ elif(sys.argv[1].lower()=="cpu"):
 	pass
 else:
 	print("\nCommand line error:")
-	print("Usage: python %s cpu|gpu|id0 [# cpu processes]" % (sys.argv[0]))
+	print("Usage: python %s cpu|gpu|id0 [# cpu processes] [ID0 hash]" % (sys.argv[0]))
 	print("Ex: python %s cpu 4" % (sys.argv[0]))
+	print("Ex: python %s gpu" % (sys.argv[0]))
+	print("Ex: python %s id0 abcdef0123456789abcdef0123456789" % (sys.argv[0]))
 	sys.exit(0)
 
 if(which_computer_is_this >= number_of_computers):

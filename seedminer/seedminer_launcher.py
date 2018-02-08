@@ -1,5 +1,7 @@
 from __future__ import print_function
+from __future__ import division
 import os,sys,struct,glob
+from binascii import hexlify, unhexlify
 
 #don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count=4
@@ -34,7 +36,7 @@ if(len(sys.argv) < 2 or len(sys.argv) > 3):
 	sys.exit(0)
 
 def hash_clusterer():
-	buf=""
+	buf=b""
 	hashcount=0
 
 	f=open("movable_part1.sed","rb")
@@ -46,7 +48,7 @@ def hash_clusterer():
 
 	trim=0
 	try:
-		trim=file.index("\x00"*0x40)
+		trim=file.index(b"\x00"*0x40)
 		if(trim<0x10):
 			trim=0x10
 		file=file[:trim]
@@ -82,7 +84,7 @@ def hash_clusterer():
 	else:
 		print("No hashes added!")
 	pad_len=0x1000-len(file+buf)
-	pad="\x00"*pad_len
+	pad=b"\x00"*pad_len
 	f=open("movable_part1.sed","wb")
 	f.write(file+buf+pad)
 	f.close()
@@ -97,7 +99,7 @@ f=open("saves/lfcs.dat","rb")
 buf=f.read()
 f.close()
 
-lfcs_len=len(buf)/8
+lfcs_len=len(buf)//8
 lfcs=[]
 ftune=[]
 err_correct=0
@@ -113,7 +115,7 @@ f=open("saves/lfcs_new.dat","rb")
 buf=f.read()
 f.close()
 
-lfcs_new_len=len(buf)/8
+lfcs_new_len=len(buf)//8
 lfcs_new=[]
 ftune_new=[]
 
@@ -134,7 +136,7 @@ def expand():
 def bytes2int(s):
 	n=0
 	for i in range(4):
-		n+=ord(s[i])<<(i*8)
+		n+=ord(s[i:i+1])<<(i*8)
 	return n
 
 def int2bytes(n):
@@ -145,7 +147,9 @@ def int2bytes(n):
 	return str
 	
 def byteSwap4(n):
-	return n[3]+n[2]+n[1]+n[0]
+	# return n[3]+n[2]+n[1]+n[0]
+	# doing slicing instead because that's the right thing, and indexing on bytes returns an int
+	return n[::-1]
 
 def getMsed3Estimate(n,isNew):
 	global err_correct
@@ -170,15 +174,15 @@ def getMsed3Estimate(n,isNew):
 			xl=(fc[i]-fc[i-1])
 			y=ft[i-1]
 			yl=(ft[i]-ft[i-1])
-			ys=((xs*yl)/xl)+y
+			ys=((xs*yl)//xl)+y
 			err_correct=ys
-			return ((n/5)-ys) | newbit
+			return ((n//5)-ys) | newbit
 			
-	return ((n/5)-ft[ft_size-1]) | newbit
+	return ((n//5)-ft[ft_size-1]) | newbit
 
 isNew=False
 msed3=0
-noobtest="\x00"*0x20
+noobtest=b"\x00"*0x20
 f=open("movable_part1.sed","rb")
 seed=f.read()
 f.close()
@@ -190,10 +194,10 @@ if len(seed) != 0x1000:
 	print("Error: movable_part1.sed is not 4KB")
 	sys.exit(0)
 	
-if seed[4]=="\x02":
+if seed[4:5]==b"\x02":
 	print("New3DS")
 	isNew=True
-elif seed[4]=="\x00":
+elif seed[4:5]==b"\x00":
 	print("Old3DS")
 	isNew=False
 else:
@@ -208,14 +212,14 @@ print("Error est : "+str(err_correct))
 msed3=getMsed3Estimate(bytes2int(seed[0:4]),isNew)
 
 offset=0x10
-hash_final=""
+hash_final=b""
 for i in range(64):
 	try:
-		hash=seed[offset:offset+0x20].decode("hex")
+		hash=unhexlify(seed[offset:offset+0x20])
 	except:
 		break
 	hash_single=byteSwap4(hash[0:4])+byteSwap4(hash[4:8])+byteSwap4(hash[8:12])+byteSwap4(hash[12:16])
-	print("ID0 hash "+str(i)+": "+hash_single.encode('hex'))
+	print("ID0 hash "+str(i)+": "+hexlify(hash_single).decode('ascii'))
 	hash_final+=hash_single
 	offset+=0x20
 
@@ -223,7 +227,7 @@ print("Hash total: "+str(i))
 part2=seed[0:12]+int2bytes(msed3)+hash_final
 
 pad=0x1000-len(part2)
-part2+="\x00"*pad
+part2+=b"\x00"*pad
 
 f=open("movable_part2.sed","wb")
 f.write(part2)
@@ -241,8 +245,8 @@ if(sys.argv[1].lower() == "gpu"):
 	f=open("movable_part2.sed","rb")
 	buf=f.read()
 	f.close()
-	keyy=buf[:16].encode('hex')
-	ID0=buf[16:32].encode('hex')
+	keyy=hexlify(buf[:16]).decode('ascii')
+	ID0=hexlify(buf[16:32]).decode('ascii')
 	command="bfcl msky %s %s" % (keyy,ID0)
 	print(command)
 	os.system(command)
@@ -292,5 +296,4 @@ for i in range(process_count):
 	size=process_end-process_begin
 	os.system("start seedMiner.exe %08X %09X" % (start,size))
 	print("Process: "+str(i)+" Start: "+hex(process_begin)+" Size: "+hex(size))
-	
 	

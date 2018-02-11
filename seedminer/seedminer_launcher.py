@@ -16,6 +16,7 @@ lfcs=[]
 ftune=[]
 lfcs_new=[]
 ftune_new=[]
+err_correct=0
 
 def int16bytes(n):
 	s=""
@@ -148,6 +149,7 @@ def mii_gpu():
 	os.system(command)
 
 def generate_part2():
+	global err_correct
 	f=open("saves/lfcs.dat","rb")
 	buf=f.read()
 	f.close()

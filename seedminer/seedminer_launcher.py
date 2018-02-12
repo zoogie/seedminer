@@ -1,5 +1,7 @@
 from __future__ import print_function
+from __future__ import division
 import os,sys,struct,glob
+from binascii import hexlify, unhexlify
 
 #don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count=4
@@ -19,11 +21,16 @@ ftune_new=[]
 err_correct=0
 
 def int16bytes(n):
-	s=""
-	for i in range(16):
-		s=chr(n & 0xFF)+s
-		n=n>>8
-	return s
+	if sys.version_info[0] > 2:
+		# Python 3
+		return n.to_bytes(16, 'big')
+	else:
+		# Python 2
+		s=b""
+		for i in range(16):
+			s=chr(n & 0xFF)+s
+			n=n>>8
+		return s
 
 def expand():
 	for i in range(1,len(lfcs)):
@@ -35,7 +42,7 @@ def expand():
 def bytes2int(s):
 	n=0
 	for i in range(4):
-		n+=ord(s[i])<<(i*8)
+		n+=ord(s[i:i+1])<<(i*8)
 	return n
 
 def int2bytes(n):
@@ -46,7 +53,8 @@ def int2bytes(n):
 	return str
 	
 def byteSwap4(n):
-	return n[3]+n[2]+n[1]+n[0]
+	# using a slice to reverse is better, and easier for bytes
+	return n[::-1]
 	
 def endian4(n):
 	return (n&0xFF000000)>>24 | (n&0x00FF0000)>>8 | (n&0x0000FF00)<<8 | (n&0x000000FF)<<24
@@ -74,11 +82,11 @@ def getMsed3Estimate(n,isNew):
 			xl=(fc[i]-fc[i-1])
 			y=ft[i-1]
 			yl=(ft[i]-ft[i-1])
-			ys=((xs*yl)/xl)+y
+			ys=((xs*yl)//xl)+y
 			err_correct=ys
-			return ((n/5)-ys) | newbit
+			return ((n//5)-ys) | newbit
 			
-	return ((n/5)-ft[ft_size-1]) | newbit
+	return ((n//5)-ft[ft_size-1]) | newbit
 	
 def mii_gpu():
 	from Cryptodome.Cipher import AES
@@ -88,7 +96,7 @@ def mii_gpu():
 	enc=f.read()
 	f.close()
 
-	nonce=enc[:8]+"\x00"*4
+	nonce=enc[:8]+b"\x00"*4
 	cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce )
 	dec=cipher.decrypt(enc[8:0x60])
 	nonce=nonce[:8]
@@ -102,16 +110,16 @@ def mii_gpu():
 	else:
 		print("Error: need to specify new|old movable.sed")
 		sys.exit(0)
-	model_str=""
-	start_lfcs_old=0x0B000000/2
-	start_lfcs_new=0x05000000/2
+	model_str=b""
+	start_lfcs_old=0x0B000000//2
+	start_lfcs_new=0x05000000//2
 	start_lfcs=0
 	year=0
 	if(len(sys.argv)==4):
 			year=int(sys.argv[3])
 		
 	if(model=="old"):
-		model_str="\x00\x00"
+		model_str=b"\x00\x00"
 		if  (year==2011):
 			start_lfcs_old=0x01000000
 		elif(year==2012):
@@ -131,7 +139,7 @@ def mii_gpu():
 		start_lfcs=start_lfcs_old
 		
 	elif(model=="new"):
-		model_str="\x02\x00"
+		model_str=b"\x02\x00"
 		if    (year==2014):
 			start_lfcs_new=0x00800000
 		elif  (year==2015):
@@ -144,7 +152,7 @@ def mii_gpu():
 			print("Year 2014-2017 not entered so beginning at lfcs midpoint "+hex(start_lfcs_new))
 		start_lfcs=start_lfcs_new
 	start_lfcs=endian4(start_lfcs)
-	command="bfcl lfcs %08X %s %s %08X" % (start_lfcs, model_str.encode("hex"), final[4:4+8].encode("hex"), endian4(offset_override))
+	command="bfcl lfcs %08X %s %s %08X" % (start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4+8]).decode('ascii'), endian4(offset_override))
 	print(command)
 	os.system(command)
 
@@ -154,7 +162,7 @@ def generate_part2():
 	buf=f.read()
 	f.close()
 
-	lfcs_len=len(buf)/8
+	lfcs_len=len(buf)//8
 	err_correct=0
 
 	for i in range(lfcs_len):
@@ -167,7 +175,7 @@ def generate_part2():
 	buf=f.read()
 	f.close()
 
-	lfcs_new_len=len(buf)/8
+	lfcs_new_len=len(buf)//8
 
 	for i in range(lfcs_new_len):
 		lfcs_new.append(struct.unpack("<i",buf[i*8:i*8+4])[0])
@@ -177,7 +185,7 @@ def generate_part2():
 
 	isNew=False
 	msed3=0
-	noobtest="\x00"*0x20
+	noobtest=b"\x00"*0x20
 	f=open("movable_part1.sed","rb")
 	seed=f.read()
 	f.close()
@@ -192,10 +200,10 @@ def generate_part2():
 		print("Error: movable_part1.sed is not 4KB")
 		sys.exit(0)
 		
-	if seed[4]=="\x02":
+	if seed[4:5]==b"\x02":
 		print("New3DS msed")
 		isNew=True
-	elif seed[4]=="\x00":
+	elif seed[4:5]==b"\x00":
 		print("Old3DS msed - this can happen on a New3DS")
 		isNew=False
 	else:
@@ -209,14 +217,14 @@ def generate_part2():
 	msed3=getMsed3Estimate(bytes2int(seed[0:4]),isNew)
 
 	offset=0x10
-	hash_final=""
+	hash_final=b""
 	for i in range(64):
 		try:
-			hash=seed[offset:offset+0x20].decode("hex")
+			hash=unhexlify(seed[offset:offset+0x20])
 		except:
 			break
 		hash_single=byteSwap4(hash[0:4])+byteSwap4(hash[4:8])+byteSwap4(hash[8:12])+byteSwap4(hash[12:16])
-		print("ID0 hash "+str(i)+": "+hash_single.encode('hex'))
+		print("ID0 hash "+str(i)+": "+hexlify(hash_single).decode('ascii'))
 		hash_final+=hash_single
 		offset+=0x20
 
@@ -224,7 +232,7 @@ def generate_part2():
 	part2=seed[0:12]+int2bytes(msed3)+hash_final
 
 	pad=0x1000-len(part2)
-	part2+="\x00"*pad
+	part2+=b"\x00"*pad
 
 	f=open("movable_part2.sed","wb")
 	f.write(part2)
@@ -232,7 +240,7 @@ def generate_part2():
 	print("movable_part2.sed generation success")
 
 def hash_clusterer():
-	buf=""
+	buf=b""
 	hashcount=0
 
 	f=open("movable_part1.sed","rb")
@@ -244,7 +252,7 @@ def hash_clusterer():
 
 	trim=0
 	try:
-		trim=file.index("\x00"*0x40)
+		trim=file.index(b"\x00"*0x40)
 		if(trim<0x10):
 			trim=0x10
 		file=file[:trim]
@@ -280,11 +288,11 @@ def hash_clusterer():
 	else:
 		print("No hashes added!")
 	pad_len=0x1000-len(file+buf)
-	pad="\x00"*pad_len
+	pad=b"\x00"*pad_len
 	f=open("movable_part1.sed","wb")
 	f.write(file+buf+pad)
 	f.close()
-	print("There are now %d ID0 hashes in your movable_part1.sed!" % ((len(file+buf)/0x20)))
+	print("There are now %d ID0 hashes in your movable_part1.sed!" % ((len(file+buf)//0x20)))
 	print("Done!")
 
 def do_cpu():
@@ -331,8 +339,8 @@ def do_gpu():
 	f=open("movable_part2.sed","rb")
 	buf=f.read()
 	f.close()
-	keyy=buf[:16].encode('hex')
-	ID0=buf[16:32].encode('hex')
+	keyy=hexlify(buf[:16]).decode('ascii')
+	ID0=hexlify(buf[16:32]).decode('ascii')
 	command="bfcl msky %s %s %08X" % (keyy,ID0, endian4(offset_override))
 	print(command)
 	os.system(command)
@@ -355,7 +363,9 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-if(sys.version_info[0] != 2):
+# "SEEDMINER_ALLOW3" is checked to allow Python 3 during testing.
+# It should be removed when 3 is ready for everyone to use.
+if(sys.version_info[0] != 2 and os.environ.get('SEEDMINER_ALLOW3') != '1'):
 	print("For the highest levels of customer safety and satisfaction, please use Python 2")
 	sys.exit(0)
 if(len(sys.argv) < 2 or len(sys.argv) > 4):

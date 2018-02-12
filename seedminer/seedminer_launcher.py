@@ -46,11 +46,11 @@ def bytes2int(s):
 	return n
 
 def int2bytes(n):
-	str=bytearray(4)
+	s=bytearray(4)
 	for i in range(4):
-		str[i]=n & 0xFF
+		s[i]=n & 0xFF
 		n=n>>8
-	return str
+	return s
 	
 def byteSwap4(n):
 	# using a slice to reverse is better, and easier for bytes
@@ -92,9 +92,8 @@ def mii_gpu():
 	from Cryptodome.Cipher import AES
 
 	nk31=0x59FC817E6446EA6190347B20E9BDCE52
-	f=open("input.bin","rb")
-	enc=f.read()
-	f.close()
+	with open("input.bin", "rb") as f:
+		enc=f.read()
 
 	nonce=enc[:8]+b"\x00"*4
 	cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce )
@@ -102,9 +101,8 @@ def mii_gpu():
 	nonce=nonce[:8]
 	final=dec[:12]+nonce+dec[12:]
 
-	f=open("output.bin","wb")
-	f.write(final)
-	f.close()
+	with open("output.bin", "wb") as f:
+		f.write(final)
 	if(len(sys.argv) >= 3):
 		model=sys.argv[2].lower()
 	else:
@@ -158,9 +156,8 @@ def mii_gpu():
 
 def generate_part2():
 	global err_correct
-	f=open("saves/lfcs.dat","rb")
-	buf=f.read()
-	f.close()
+	with open("saves/lfcs.dat", "rb") as f:
+		buf=f.read()
 
 	lfcs_len=len(buf)//8
 	err_correct=0
@@ -171,9 +168,8 @@ def generate_part2():
 	for i in range(lfcs_len):
 		ftune.append(struct.unpack("<i",buf[i*8+4:i*8+8])[0])
 
-	f=open("saves/lfcs_new.dat","rb")
-	buf=f.read()
-	f.close()
+	with open("saves/lfcs_new.dat", "rb") as f:
+		buf=f.read()
 
 	lfcs_new_len=len(buf)//8
 
@@ -186,9 +182,8 @@ def generate_part2():
 	isNew=False
 	msed3=0
 	noobtest=b"\x00"*0x20
-	f=open("movable_part1.sed","rb")
-	seed=f.read()
-	f.close()
+	with open("movable_part1.sed", "rb") as f:
+		seed=f.read()
 	if(noobtest in seed[0x10:0x30]):
 		print("Error: ID0 has been left blank, please add an ID0")
 		print("Ex: python %s id0 abcdef0123456789abcdef0123456789" % (sys.argv[0]))
@@ -234,21 +229,18 @@ def generate_part2():
 	pad=0x1000-len(part2)
 	part2+=b"\x00"*pad
 
-	f=open("movable_part2.sed","wb")
-	f.write(part2)
-	f.close()
+	with open("movable_part2.sed", "wb") as f:
+		f.write(part2)
 	print("movable_part2.sed generation success")
 
 def hash_clusterer():
 	buf=b""
 	hashcount=0
 
-	f=open("movable_part1.sed","rb")
-	file=f.read()
-	f.close()
-	f=open("movable_part1.sed.backup","wb")
-	f.write(file)
-	f.close()
+	with open("movable_part1.sed", "rb") as f:
+		file=f.read()
+	with open("movable_part1.sed.backup", "wb") as f:
+		f.write(file)
 
 	trim=0
 	try:
@@ -289,9 +281,8 @@ def hash_clusterer():
 		print("No hashes added!")
 	pad_len=0x1000-len(file+buf)
 	pad=b"\x00"*pad_len
-	f=open("movable_part1.sed","wb")
-	f.write(file+buf+pad)
-	f.close()
+	with open("movable_part1.sed", "wb") as f:
+		f.write(file+buf+pad)
 	print("There are now %d ID0 hashes in your movable_part1.sed!" % ((len(file+buf)//0x20)))
 	print("Done!")
 
@@ -336,9 +327,8 @@ def do_cpu():
 		print("Process: "+str(i)+" Start: "+hex(process_begin)+" Size: "+hex(size))
 		
 def do_gpu():
-	f=open("movable_part2.sed","rb")
-	buf=f.read()
-	f.close()
+	with open("movable_part2.sed", "rb") as f:
+		buf=f.read()
 	keyy=hexlify(buf[:16]).decode('ascii')
 	ID0=hexlify(buf[16:32]).decode('ascii')
 	command="bfcl msky %s %s %08X" % (keyy,ID0, endian4(offset_override))

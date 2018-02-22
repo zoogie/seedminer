@@ -1,5 +1,6 @@
-from __future__ import print_function
-import os,sys,struct,glob,urllib2
+import os,sys,struct,glob
+import urllib.request
+from binascii import hexlify, unhexlify
 
 #don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count=4
@@ -19,11 +20,7 @@ ftune_new=[]
 err_correct=0
 
 def int16bytes(n):
-	s=""
-	for i in range(16):
-		s=chr(n & 0xFF)+s
-		n=n>>8
-	return s
+	return n.to_bytes(16, 'big')
 
 def expand():
 	for i in range(1,len(lfcs)):
@@ -75,11 +72,11 @@ def getMsed3Estimate(n,isNew):
 			xl=(fc[i]-fc[i-1])
 			y=ft[i-1]
 			yl=(ft[i]-ft[i-1])
-			ys=((xs*yl)/xl)+y
+			ys=((xs*yl)//xl)+y
 			err_correct=ys
-			return ((n/5)-ys) | newbit
+			return ((n//5)-ys) | newbit
 			
-	return ((n/5)-ft[ft_size-1]) | newbit
+	return ((n//5)-ft[ft_size-1]) | newbit
 	
 def mii_gpu():
 	from Cryptodome.Cipher import AES
@@ -90,7 +87,7 @@ def mii_gpu():
 	if(len(enc) != 0x70):
 		print("Error: input.bin is invalid size (likely QR -> input.bin conversion issue)")
 		sys.exit(0)
-	nonce=enc[:8]+"\x00"*4
+	nonce=enc[:8]+b"\x00"*4
 	cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce )
 	dec=cipher.decrypt(enc[8:0x60])
 	nonce=nonce[:8]
@@ -103,16 +100,16 @@ def mii_gpu():
 	else:
 		print("Error: need to specify new|old movable.sed")
 		sys.exit(0)
-	model_str=""
-	start_lfcs_old=0x0B000000/2
-	start_lfcs_new=0x05000000/2
+	model_str=b""
+	start_lfcs_old=0x0B000000//2
+	start_lfcs_new=0x05000000//2
 	start_lfcs=0
 	year=0
 	if(len(sys.argv)==4):
 			year=int(sys.argv[3])
 		
 	if(model=="old"):
-		model_str="\x00\x00"
+		model_str=b"\x00\x00"
 		if  (year==2011):
 			start_lfcs_old=0x01000000
 		elif(year==2012):
@@ -132,7 +129,7 @@ def mii_gpu():
 		start_lfcs=start_lfcs_old
 		
 	elif(model=="new"):
-		model_str="\x02\x00"
+		model_str=b"\x02\x00"
 		if    (year==2014):
 			start_lfcs_new=0x00800000
 		elif  (year==2015):
@@ -145,7 +142,7 @@ def mii_gpu():
 			print("Year 2014-2017 not entered so beginning at lfcs midpoint "+hex(start_lfcs_new))
 		start_lfcs=start_lfcs_new
 	start_lfcs=endian4(start_lfcs)
-	command="bfcl lfcs %08X %s %s %08X" % (start_lfcs, model_str.encode('hex'), final[4:4+8].encode('hex'), endian4(offset_override))
+	command="bfcl lfcs %08X %s %s %08X" % (start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4+8]).decode('ascii'), endian4(offset_override))
 	print(command)
 	os.system(command)
 
@@ -154,7 +151,7 @@ def generate_part2():
 	with open("saves/lfcs.dat", "rb") as f:
 		buf=f.read()
 
-	lfcs_len=len(buf)/8
+	lfcs_len=len(buf)//8
 	err_correct=0
 
 	for i in range(lfcs_len):
@@ -166,7 +163,7 @@ def generate_part2():
 	with open("saves/lfcs_new.dat", "rb") as f:
 		buf=f.read()
 
-	lfcs_new_len=len(buf)/8
+	lfcs_new_len=len(buf)//8
 
 	for i in range(lfcs_new_len):
 		lfcs_new.append(struct.unpack("<i",buf[i*8:i*8+4])[0])
@@ -176,7 +173,7 @@ def generate_part2():
 
 	isNew=False
 	msed3=0
-	noobtest="\x00"*0x20
+	noobtest=b"\x00"*0x20
 	with open("movable_part1.sed", "rb") as f:
 		seed=f.read()
 	if(noobtest in seed[0x10:0x30]):
@@ -190,10 +187,10 @@ def generate_part2():
 		print("Error: movable_part1.sed is not 4KB")
 		sys.exit(0)
 		
-	if seed[4:5]=="\x02":
+	if seed[4:5]==b"\x02":
 		print("New3DS msed")
 		isNew=True
-	elif seed[4:5]=="\x00":
+	elif seed[4:5]==b"\x00":
 		print("Old3DS msed - this can happen on a New3DS")
 		isNew=False
 	else:
@@ -207,14 +204,14 @@ def generate_part2():
 	msed3=getMsed3Estimate(bytes2int(seed[0:4]),isNew)
 
 	offset=0x10
-	hash_final=""
+	hash_final=b""
 	for i in range(64):
 		try:
-			hash=seed[offset:offset+0x20].decode("hex")
+			hash=unhexlify(seed[offset:offset+0x20])
 		except:
 			break
 		hash_single=byteSwap4(hash[0:4])+byteSwap4(hash[4:8])+byteSwap4(hash[8:12])+byteSwap4(hash[12:16])
-		print("ID0 hash "+str(i)+": "+hash_single.encode('hex'))
+		print("ID0 hash "+str(i)+": "+hexlify(hash_single).decode('ascii'))
 		hash_final+=hash_single
 		offset+=0x20
 
@@ -222,14 +219,14 @@ def generate_part2():
 	part2=seed[0:12]+int2bytes(msed3)+hash_final
 
 	pad=0x1000-len(part2)
-	part2+="\x00"*pad
+	part2+=b"\x00"*pad
 
 	with open("movable_part2.sed", "wb") as f:
 		f.write(part2)
 	print("movable_part2.sed generation success")
 
 def hash_clusterer():
-	buf=""
+	buf=b""
 	hashcount=0
 
 	if(len(sys.argv)==3):
@@ -237,23 +234,24 @@ def hash_clusterer():
 		dirs.append(sys.argv[2])
 	else:
 		dirs=glob.glob("*")
-	
+		
 	try:
 		with open("movable_part1.sed", "rb") as f:
 			file=f.read()
 	except:
 		print("movable_part1.sed not found, generating a new one")
-		print("don't forget to add an lfcs to it!")
+		print("don't forget to add an lfcs to it!\n")
 		with open("movable_part1.sed", "wb") as f:
-			file="\x00"*0x1000
+			file=b"\x00"*0x1000
 			f.write(file)
-		
+
 	for i in dirs:
 		try:
+			temp=str(i).encode("ascii")
 			print(i,end='')
 			int(i,16)
-			if(len(i)==32 and i not in file):
-				buf+=i
+			if(len(i)==32 and temp not in file):
+				buf+=temp
 				hashcount+=1
 			else:
 				print(" -- improper ID0 length or already in file",end='')
@@ -277,10 +275,10 @@ def hash_clusterer():
 	
 	file=file[:0x10]
 	pad_len=0x1000-len(file+buf)
-	pad="\x00"*pad_len
+	pad=b"\x00"*pad_len
 	with open("movable_part1.sed", "wb") as f:
 		f.write(file+buf+pad)
-	print("There are now %d ID0 hashes in your movable_part1.sed!" % ((len(file+buf)/0x20)))
+	print("There are now %d ID0 hashes in your movable_part1.sed!" % ((len(file+buf)//0x20)))
 	print("Done!")
 
 def do_cpu():
@@ -296,7 +294,7 @@ def do_cpu():
 	address_begin=0
 	address_end=MAX
 
-	address_space=MAX/number_of_computers
+	address_space=MAX//number_of_computers
 
 	for i in range(number_of_computers):
 		if(which_computer_is_this==i):
@@ -311,7 +309,7 @@ def do_cpu():
 	print("")
 
 	process_space=address_end-address_begin
-	process_size=process_space/process_count
+	process_size=process_space//process_count
 
 	for i in range(process_count):
 		process_begin=address_begin+(process_size*i)
@@ -326,15 +324,15 @@ def do_cpu():
 def do_gpu():
 	with open("movable_part2.sed", "rb") as f:
 		buf=f.read()
-	keyy=buf[:16].encode('hex')
-	ID0=buf[16:32].encode('hex')
+	keyy=hexlify(buf[:16]).decode('ascii')
+	ID0=hexlify(buf[16:32]).decode('ascii')
 	command="bfcl msky %s %s %08X" % (keyy,ID0, endian4(offset_override))
 	print(command)
 	os.system(command)
 
 def download(url, dest):
 	try:
-		response = urllib2.urlopen(url)
+		response = urllib.request.urlopen(url)
 		html = response.read()
 		data=""
 		with open(dest, "rb") as f:

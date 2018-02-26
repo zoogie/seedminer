@@ -310,6 +310,7 @@ def do_cpu():
 	print("Overall ending   msed2 address: "+hex(address_end))
 	print("")
 
+
 	process_space=address_end-address_begin
 	process_size=process_space/process_count
 
@@ -376,11 +377,15 @@ if(len(sys.argv) < 2 or len(sys.argv) > 4):
 	sys.exit(0)
 	
 if(sys.argv[1].lower() == "gpu"):
+        if(len(sys.argv)==3):
+            offset_override = int(sys.argv[2]) * 2
 	print("GPU selected")
 	generate_part2()
 	do_gpu()
 	sys.exit(0)
 elif(sys.argv[1].lower()=="cpu"):
+        if(len(sys.argv)==3):
+            offset_override = int(sys.argv[2]) * 2
 	print("CPU selected")
 	generate_part2()
 	do_cpu()

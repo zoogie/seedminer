@@ -210,7 +210,7 @@ Result msed_data(){
 		u32 msed3=*(keyy+3);
 		s32 msed3offset=(lfcs/5)-(msed3&0x7FFFFFFF);
 		u32 seedtype=(msed3&0x80000000)>>31;
-		printf("Movable.sed dump to sdmc:/ success!\n\n");
+		printf("Movable.sed (keyy only) dump to sdmc:/ success!\nDon't inject to a real 3DS - TADpole use only!\n\n");
 		printf("  LFCS  exact  %08lX\n", lfcs);
 		printf("* LFCS  block  %08lX\n", lfcs_blk);
 		printf("  Msed3 exact  %08lX\n", msed3);

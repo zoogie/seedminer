@@ -217,6 +217,7 @@ AccessControlInfo:
    - cam:u
    - cecd:u
    - cfg:nor
+   - cfg:i
    - cfg:u
    - dsp::DSP
    - fs:USER
@@ -230,7 +231,6 @@ AccessControlInfo:
    - ir:USER
    - mcu::HWC
    - ndm:u
-   - news:s
    - nim:u
    - nwm::EXT
    - nwm::UDS

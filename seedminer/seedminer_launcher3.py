@@ -381,8 +381,6 @@ if(sys.argv[1].lower() == "gpu"):
     do_gpu()
     sys.exit(0)
 elif(sys.argv[1].lower()=="cpu"):
-    if(len(sys.argv)==3):
-        offset_override = int(sys.argv[2]) * 2
     print("CPU selected")
     generate_part2()
     do_cpu()

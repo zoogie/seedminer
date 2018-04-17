@@ -53,7 +53,7 @@ u32 load_progress(u64 start, u64 size){
 		printf("Resuming at msed3 offset %d\n\n", offset_converted);
 	}
 	else{
-		printf("Error: could not open %s\n", savename);
+		printf("Note: could not open %s\n", savename);
 		printf("Starting at msed3 offset 0\n\n");
 		return 1;
 	}

@@ -152,7 +152,8 @@ Result copy_file(char * old_path, char * new_path)
 			do
 			{
 				ret = FSFILE_Read(inputHandle, &bytesRead, offset, buffer, chunksize);
-				
+				memset(buffer, 0, 0x110);
+				memset(buffer+0x120, 0, 0x20);
 				bytesWritten += FSFILE_Write(outputHandle, &bytesWritten, offset, buffer, size, FS_WRITE_FLUSH);
 				
 				if (bytesWritten == bytesRead)

@@ -53,7 +53,8 @@ APP_ROMFS_DIR		:= $(TOPDIR)/romfs
 RSF_FILE			:= resources/cia.rsf
 
 VERSION_MAJOR := 1
-VERSION_MINOR := 2
+VERSION_MINOR := 1
+VERSION_MICRO := 0
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -208,7 +209,11 @@ $(OUTPUT).cia	: $(OUTPUT).elf $(OUTPUT).smdh $(TARGET).bnr
 	@makerom	-f cia -o $(OUTPUT).cia -DAPP_ENCRYPTED=false -DAPP_UNIQUE_ID=$(APP_UNIQUE_ID) \
 				-elf $(OUTPUT).elf -rsf $(TOPDIR)/$(RSF_FILE) \
 				-icon $(OUTPUT).smdh -banner $(TARGET).bnr  \
-				-exefslogo -target t -romfs "$(OUTPUT).bin"
+				-exefslogo -target t -romfs "$(OUTPUT).bin" \
+				-major $(VERSION_MAJOR) \
+				-minor $(VERSION_MINOR) \
+				-micro $(VERSION_MICRO)
+				
 	@echo "built ... $(notdir $@)"
 
 $(TARGET).bnr	: $(TOPDIR)/$(BANNER) $(TOPDIR)/$(JINGLE)

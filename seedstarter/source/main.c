@@ -8,6 +8,7 @@
 #include "fs.h"
 
 extern u32 keyy[4];
+u32 rnd;
 
 static Handle amHandle;
 
@@ -77,16 +78,34 @@ void data_dump()
 	char hash[0x21]={0};
 	int validHash=0;
 	u64 lfcs=0;
+	u64 lfcs2=0;
+	u64 lfcs3=0;
+		
 		
 	ret = CFGU_GetConfigInfoBlk2(8, 0x00090001, (u8*)&lfcs);
+	ret = CFGU_GetConfigInfoBlk2(8, 0x00090000, (u8*)&lfcs2); //debugging possible issues with false lfcs's. both lfcs and lfcs2 should be the same.
 	printf("cfgu_getblk2: %08X\n",(int)ret);
 	if(ret){
 		printf("GetConfigInfoBlk2 failed! Exiting...\n");
 		return;
 	}
+	ret = CFGI_GetLocalFriendCodeSeed(&lfcs3);
 	u8 filebuffer[0x1000]={0};
-	printf("LFCS  %016llX\n\n",lfcs);
-	lfcs &= 0xFFFFFFFFFFLL;
+	printf("LFCS  %016llX\n",lfcs);
+	printf("LFCS2 %016llX\n",lfcs2);
+	lfcs  &= 0xFFFFFFFFFFLL; //low 5 bytes of lfcs, which should be the same as movable.sed lfcs
+	lfcs2 &= 0xFFFFFFFFFFLL; //ditto
+	if(!ret){
+		printf("LFCS3 %016llX\n",lfcs3);
+		if(lfcs != lfcs2 || lfcs2 != lfcs3 || lfcs != lfcs3) printf("WARNING: lfcs's not equal, please report\n\n");
+		lfcs=lfcs3; //lfcs3 is from a much more trusted function than the config savegame derived lfcs's.
+	}
+	else{
+		printf("LFCS3 not available - need cfg:i\n");
+		if(lfcs != lfcs2) printf("WARNING: lfcs's not equal, please report\n\n");
+	}
+	
+	
 	memcpy(filebuffer, &lfcs, 8);
 	int c;
 	
@@ -202,15 +221,13 @@ Result msed_data(){
 		printf("no cfw or luma3DS 9.0+ possible reasons\n\n");
 	}
 	else{
-		srand(time(NULL));
-		u32 rnd=rand();
 		char filename[0x100]={0};
 		u32 lfcs=*keyy;
 		u32 lfcs_blk=lfcs >> 12;
 		u32 msed3=*(keyy+3);
 		s32 msed3offset=(lfcs/5)-(msed3&0x7FFFFFFF);
 		u32 seedtype=(msed3&0x80000000)>>31;
-		printf("Movable.sed dump to sdmc:/ success!\n\n");
+		printf("Movable.sed (keyy only) dump to sdmc:/ success!\nDon't inject to a real 3DS - TADpole use only!\n\n");
 		printf("  LFCS  exact  %08lX\n", lfcs);
 		printf("* LFCS  block  %08lX\n", lfcs_blk);
 		printf("  Msed3 exact  %08lX\n", msed3);
@@ -256,7 +273,7 @@ Result ctcert_dump(){
 
 void showMenu(){
 	consoleClear();
-	printf("<< seedstarter - zoogie >>\n\n");
+	printf("<< seedstarter - zoogie >> v1.1\n\n");
 	printf("Based on friendMii, 3DSident, and\n");
 	printf("3DS-Recovery-Tool by Joel16\n");
 	printf("Please run with Luma3DS 9.0+ if possible\n\n");
@@ -287,6 +304,8 @@ int main(int argc, char **argv)
 {
 	gfxInitDefault();
 	consoleInit(GFX_TOP, NULL);
+	srand(time(NULL));
+    rnd=rand();
 	
 	showMenu();
 	mkdir("sdmc:/seedstarter/", 0777);

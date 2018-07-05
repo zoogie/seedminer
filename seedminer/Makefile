@@ -58,9 +58,13 @@ INCLUDES	:=	include
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	:=	-Wall -O3
+CFLAGS	:=	-Wall -Werror -O3
 
 CFLAGS	+=	$(INCLUDE)
+ifeq ($(shell uname), Darwin)
+	# Assume that we've downloaded OpenSSL through Homebrew
+	CFLAGS	+=	-I/usr/local/opt/openssl/include
+endif
 CXXFLAGS	:= $(CFLAGS)
 
 ASFLAGS	:=	-g
@@ -69,8 +73,14 @@ LDFLAGS	=	-g
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:= 	-lcrypto
- 
+ifeq ($(shell uname), Darwin)
+	# Once again, assume that we've downloaded OpenSSL through Homebrew
+	LIBS    := "/usr/local/opt/openssl/lib/libcrypto.dylib"
+	# If you want to use the crypto static library instead (on macOS), change "/usr/local/opt/openssl/lib/libcrypto.dylib" to "/usr/local/opt/openssl/lib/libcrypto.a" (if you downloaded OpenSSL through Homebrew) with the quotes.
+else
+	LIBS	:= 	-lcrypto
+endif
+
  
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -126,7 +136,7 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
  
 #---------------------------------------------------------------------------------
 clean:

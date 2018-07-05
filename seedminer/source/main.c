@@ -8,11 +8,17 @@
 #include <openssl/sha.h>
 #include "types.h"
 
+#ifdef _WIN32
+#define LL "I64"
+#else
+#define LL "ll"
+#endif
+
 u8 sha256[0x20]={0};
 u8 ID0[0x10]={0};
 u8 part2[0x20]={0};
 u8 msed[0x140]={0};
-u32 keyy[4]={0}; 
+unsigned char keyy[0x10]={0};
 u32 save_offset=0;
 
 u32 check_finish(){
@@ -25,7 +31,7 @@ u32 check_finish(){
 
 u32 save_progress(u64 start, u64 size, u32 progress){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08"LL"X-%09"LL"X.bin", (unsigned long long) start, (unsigned long long) size);
 	FILE *f=fopen(savename,"wb+");
 	if(f){
 		printf("Saving progress to file %s ...\n\n", savename);
@@ -41,11 +47,14 @@ u32 save_progress(u64 start, u64 size, u32 progress){
 
 u32 load_progress(u64 start, u64 size){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08"LL"X-%09"LL"X.bin", (unsigned long long) start, (unsigned long long) size);
 	FILE *f=fopen(savename,"rb");
 	if(f){
 		printf("Loading %s ...\n", savename);
-		fread(&save_offset, 1, 4, f);
+		if (fread(&save_offset, 1, 4, f) != 1) {
+			fprintf(stderr, "error durring fread\n");
+			exit(-1);
+		}
 		fclose(f);
 		
 		s32 neg = save_offset&1 ? -1 : 1;
@@ -69,7 +78,7 @@ s32 bf_block(u32 offset, u64 start, u64 size){
 	
 	if(offset_converted+((s32)keyy[3]&0x7FFFFFFF) < 0) return -2; //oob check
 	
-	printf("At msed2 address 0x%08I64X, size 0x%09I64X:\n", start, size);
+	printf("At msed2 address 0x%08"LL"X, size 0x%09"LL"X:\n", (unsigned long long) start, (unsigned long long) size);
 	
 	u32 original=keyy[3];
 	printf("Brute forcing msed3 offset %d (0x%08X)...\n", offset_converted, keyy[3]+offset_converted);
@@ -91,7 +100,7 @@ int main(int argc, char **argv)
 	int ret=1;
 	
 	if(argc!=3){
-		printf("seedminer.exe <start_offset> <size>\nNote that all values interpreted as hex\n");
+		printf("seedminer <start_offset> <size>\nNote that all values interpreted as hex\n");
 		return 1;
 	}
 	
@@ -103,7 +112,10 @@ int main(int argc, char **argv)
 	FILE *f;
 	f = fopen("movable_part2.sed", "rb");
 	if(f==NULL)return 0;
-	fread(part2, 1, 0x20, f);
+	if (fread(part2, 1, 0x20, f) != 1) {
+		fprintf(stderr, "error durring fread\n");
+		exit(-1);
+	}
 	fclose(f);
 	
 	memcpy(keyy, part2, 0x10);

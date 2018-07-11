@@ -51,7 +51,7 @@ u32 load_progress(u64 start, u64 size){
 	FILE *f=fopen(savename,"rb");
 	if(f){
 		printf("Loading %s ...\n", savename);
-		if (fread(&save_offset, 1, 4, f) != 1) {
+		if (fread(&save_offset, 1, 4, f) != 4) {
 			fprintf(stderr, "error durring fread\n");
 			exit(-1);
 		}
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 	FILE *f;
 	f = fopen("movable_part2.sed", "rb");
 	if(f==NULL)return 0;
-	if (fread(part2, 1, 0x20, f) != 1) {
+	if (fread(part2, 1, 0x20, f) != 0x20) {
 		fprintf(stderr, "error durring fread\n");
 		exit(-1);
 	}

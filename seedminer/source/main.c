@@ -100,7 +100,11 @@ int main(int argc, char **argv)
 	int ret=1;
 	
 	if(argc!=3){
+		#ifdef _WIN32
 		printf("seedminer <start_offset> <size>\nNote that all values interpreted as hex\n");
+		#else
+		printf("./seedminer <start_offset> <size>\nNote that all values interpreted as hex\n");
+		#endif
 		return 1;
 	}
 	

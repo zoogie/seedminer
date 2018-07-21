@@ -53,7 +53,7 @@ APP_ROMFS_DIR		:= $(TOPDIR)/romfs
 RSF_FILE			:= resources/cia.rsf
 
 VERSION_MAJOR := 1
-VERSION_MINOR := 1
+VERSION_MINOR := 2
 VERSION_MICRO := 0
 
 #---------------------------------------------------------------------------------

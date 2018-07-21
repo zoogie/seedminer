@@ -71,17 +71,12 @@ void data_dump()
 		return;
 	}
 
-	Handle dirHandle;
-	FS_Archive sdmcArchive;
-	FS_DirectoryEntry entries[8];
-	u32 entriesRead=0;
-	char hash[0x21]={0};
-	int validHash=0;
 	u64 lfcs=0;
 	u64 lfcs2=0;
-	u64 lfcs3=0;
-		
-		
+	u64 lfcs3=0;	
+	u8 filebuffer[0x1000]={0};
+	u16 id0buf[0x80]={0};
+	
 	ret = CFGU_GetConfigInfoBlk2(8, 0x00090001, (u8*)&lfcs);
 	ret = CFGU_GetConfigInfoBlk2(8, 0x00090000, (u8*)&lfcs2); //debugging possible issues with false lfcs's. both lfcs and lfcs2 should be the same.
 	printf("cfgu_getblk2: %08X\n",(int)ret);
@@ -90,7 +85,7 @@ void data_dump()
 		return;
 	}
 	ret = CFGI_GetLocalFriendCodeSeed(&lfcs3);
-	u8 filebuffer[0x1000]={0};
+
 	printf("LFCS  %016llX\n",lfcs);
 	printf("LFCS2 %016llX\n",lfcs2);
 	lfcs  &= 0xFFFFFFFFFFLL; //low 5 bytes of lfcs, which should be the same as movable.sed lfcs
@@ -104,45 +99,24 @@ void data_dump()
 		printf("LFCS3 not available - need cfg:i\n");
 		if(lfcs != lfcs2) printf("WARNING: lfcs's not equal, please report\n\n");
 	}
-	
-	
 	memcpy(filebuffer, &lfcs, 8);
-	int c;
 	
-	ret = FSUSER_OpenArchive(&sdmcArchive, ARCHIVE_SDMC, (FS_Path){ PATH_EMPTY, 1, (u8*)"" });
-	printf("openArchive %08X\n",(int)ret);
-	ret = FSUSER_OpenDirectory(&dirHandle, sdmcArchive,(FS_Path){PATH_ASCII, 14, (u8*)"/Nintendo 3DS"});
-	printf("openDir     %08X\n",(int)ret);
-	ret = FSDIR_Read(dirHandle, &entriesRead, 8, entries);
-	
-	if(ret==0){
-		for(int j=0;j<entriesRead;j++){
-			if(strlen16(entries[j].name)==32){
-				for(int i=0;i<32;i++){
-					c=*(entries[j].name+i) & 0xFF; 
-					if(c<0x67&&c>0x60)c-=0x20;
-					if( (c>0x47||c<0x40) && (c<0x29||c>0x3A) ) goto nothex;
-				}
-				validHash++;  
-				for(int i=0;i<32;i++){
-					hash[i]=*(entries[j].name+i) & 0xFF;
-				}
-			}
-			printf("%d ",strlen16(entries[j].name));
-			nothex:;
-		}
-		printf("\nID0   %s\n",hash);
-	}
-	memcpy(&filebuffer[0x10], hash, 0x20);
+	ret = FSUSER_GetSdmcCtrRootPath((u8*)id0buf, 0x80*2);
+	printf("id0 get: %08X\n",(int)ret);
 
-	if(validHash==1){
+	if(!ret || !lfcs){
+		for(int i=0;i<32;i++){
+			filebuffer[0x10+i]=(u8)id0buf[14+i];
+			printf("%c",(char)filebuffer[0x10+i]);
+		}
+		
 		FILE *f=fopen("/seedstarter/movable_part1.sed","wb");
 		fwrite(filebuffer, 1, 0x1000, f);
 		fclose(f);
-		printf("\nSuccess! movable_part1.sed dumped\n");
+		printf("\n\nSuccess! movable_part1.sed dumped\n");
 	}
 	else{
-		printf("\nERROR!!\nIncorrect number of hash dirs found! (%d)\nMake sure there is *only* one!\n", validHash);
+		printf("\nERROR!!\nGetSdmcCtrRootPath or getConfigInfoBlk2 failed\n");
 	}
 
 }
@@ -273,7 +247,7 @@ Result ctcert_dump(){
 
 void showMenu(){
 	consoleClear();
-	printf("<< seedstarter - zoogie >> v1.1\n\n");
+	printf("<< seedstarter - zoogie >> v1.2\n\n");
 	printf("Based on friendMii, 3DSident, and\n");
 	printf("3DS-Recovery-Tool by Joel16\n");
 	printf("Please run with Luma3DS 9.0+ if possible\n\n");

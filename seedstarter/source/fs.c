@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
+#include <3ds.h>
 
 u32 keyy[4]={0};
 

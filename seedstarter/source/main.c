@@ -104,7 +104,7 @@ void data_dump()
 	ret = FSUSER_GetSdmcCtrRootPath((u8*)id0buf, 0x80*2);
 	printf("id0 get: %08X\n",(int)ret);
 
-	if(!ret || !lfcs){
+	if(!ret && lfcs){
 		for(int i=0;i<32;i++){
 			filebuffer[0x10+i]=(u8)id0buf[14+i];
 			printf("%c",(char)filebuffer[0x10+i]);

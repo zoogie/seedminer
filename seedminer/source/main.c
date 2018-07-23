@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 	fwrite(&error, 1, 4, f);
 	fwrite(&seedtype, 1, 4, f);
 	fclose(f);
-	printf("\n%s dumped!\nPlease share this^ and help improve seedminer for others\nYou benefited from others that shared theirs before!\nPass on the favor, please!!\n", filename);
+	printf("\n%s dumped!\nJust keep it handy if you don't know what to do with it!\n", filename);
 	printf("Done!\n");
 	
 	getchar();

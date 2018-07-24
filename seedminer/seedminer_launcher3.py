@@ -1,7 +1,8 @@
-import os
-import sys
-import struct
 import glob
+import os
+import struct
+import subprocess
+import sys
 import urllib.request
 from binascii import hexlify, unhexlify
 
@@ -153,9 +154,9 @@ def mii_gpu():
             print("Year 2014-2017 not entered so beginning at lfcs midpoint " + hex(start_lfcs_new))
         start_lfcs = start_lfcs_new
     start_lfcs = endian4(start_lfcs)
-    command = "bfcl lfcs %08X %s %s %08X" % (start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+    command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     print(command)
-    os.system(command)
+    subprocess.call(command.split())
 
 
 def generate_part2():
@@ -188,7 +189,7 @@ def generate_part2():
         seed = f.read()
     if noobtest in seed[0x10:0x30]:
         print("Error: ID0 has been left blank, please add an ID0")
-        print("Ex: python %s id0 abcdef012345EXAMPLEdef0123456789" % (sys.argv[0]))
+        print("Ex: python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
         sys.exit(0)
     if noobtest[:4] in seed[:4]:
         print("Error: LFCS has been left blank, did you do a complete two-way friend code exchange before dumping friendlist?")
@@ -271,7 +272,7 @@ def hash_clusterer():
         
     print("")
     if hashcount > 1:
-        print("Too many ID0 dirs! (%d)\nMove the ones your 3ds isn't using!" % hashcount)
+        print("Too many ID0 dirs! ({})\nMove the ones your 3ds isn't using!".format(hashcount))
         sys.exit(0)
         
     if hashcount == 1:
@@ -288,7 +289,7 @@ def hash_clusterer():
     pad = b"\x00" * pad_len
     with open("movable_part1.sed", "wb") as f:
         f.write(file + buf + pad)
-    print("There are now %d ID0 hashes in your movable_part1.sed!" % (len(file + buf) // 0x20))
+    print("There are now {} ID0 hashes in your movable_part1.sed!".format(len(file + buf) // 0x20))
     print("Done!")
 
 
@@ -329,8 +330,8 @@ def do_cpu():
             process_end = address_end
         start = process_begin
         size = process_end - process_begin
-        os.system("start seedMiner.exe %08X %09X" % (start, size))
-        print("Process: "+str(i)+" Start: " + hex(process_begin) + " Size: " + hex(size))
+        subprocess.call("start seedminer {0:08X} {1:09X}".format(start, size).split())
+        print("Process: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
 
 
 def do_gpu():
@@ -338,9 +339,9 @@ def do_gpu():
         buf = f.read()
     keyy = hexlify(buf[:16]).decode('ascii')
     id0 = hexlify(buf[16:32]).decode('ascii')
-    command = "bfcl msky %s %s %08X" % (keyy, id0, endian4(offset_override))
+    command = "bfcl msky {0} {1} {2:08X}".format(keyy, id0, endian4(offset_override))
     print(command)
-    os.system(command)
+    subprocess.call(command.split())
 
 
 def download(url, dest):
@@ -367,15 +368,15 @@ def update_db():
 def error_print():
     print("\nCommand line error")
     print("Usage:")
-    print("python %s cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [ID0 hash] [year 3ds built]" % (sys.argv[0]))
+    print("python {} cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [ID0 hash] [year 3ds built]".format(sys.argv[0]))
     print("Examples:")
-    print("python %s cpu 4" % (sys.argv[0]))
-    print("python %s gpu" % (sys.argv[0]))
-    print("python %s id0 abcdef012345EXAMPLEdef0123456789" % (sys.argv[0]))
-    print("python %s mii new 2017" % (sys.argv[0]))
-    print("python %s mii old 2011" % (sys.argv[0]))
-    print("python %s mii old" % (sys.argv[0]))
-    print("python %s update-db" % (sys.argv[0]))
+    print("python {} cpu 4".format(sys.argv[0]))
+    print("python {} gpu".format(sys.argv[0]))
+    print("python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
+    print("python {} mii new 2017".format(sys.argv[0]))
+    print("python {} mii old 2011".format(sys.argv[0]))
+    print("python {} mii old".format(sys.argv[0]))
+    print("python {} update-db".format(sys.argv[0]))
 
 
 # ---------------------------------------------------------------------------

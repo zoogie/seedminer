@@ -1,5 +1,6 @@
 import glob
 import os
+import platform
 import struct
 import subprocess
 import sys
@@ -9,11 +10,20 @@ from binascii import hexlify, unhexlify
 
 # don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count = 4
+# -----------------------------------------------------------------------------------------------------------------
 # Note: Argument parsing will override the following two variables and multiply them by 2!
 # Otherwise, the following two variables will not be multiplied.
-offset_override = 0  # for gpu options, this allows starting brute-force at a user-defined offset
-max_msky_offset = 16384  # only for the do_gpu() function, this allows ending at a user-defined offset; 16384 should be the max though!
-force_reduced_work_size = False  # Set this variable to "True" (without the quotes) if you want to use less of your gpu while mining
+# ---
+# for gpu options
+offset_override = 0  # this allows starting brute-force at a user-defined offset
+# ---
+# only for the do_gpu() function (movable.sed brute-forcing)
+max_msky_offset = 16384  # this allows ending at a user-defined offset; 16384 should be considered the max though!
+# -----------------------------------------------------------------------------------------------------------------
+# for gpu options
+# set this variable to "True" (without the quotes) if you want to use less of your gpu while mining
+# your hash rate will decrease by a bit
+force_reduced_work_size = False
 # -----------------------------------------------------------------------------------------------------------------
 # Don't edit below this line unless you have multiple computers brute-forcing - most of you won't need this feature
 # -----------------------------------------------------------------------------------------------------------------
@@ -27,6 +37,7 @@ ftune = []
 lfcs_new = []
 ftune_new = []
 err_correct = 0
+os_sys = platform.system()
 
 
 def int16bytes(n):
@@ -58,7 +69,7 @@ def int2bytes(n):
 
 def byteswap4(n):
     # using a slice to reverse is better, and easier for bytes
-    return n[:: - 1]
+    return n[::-1]
 
 
 def endian4(n):
@@ -159,7 +170,10 @@ def mii_gpu():
             print("Year 2014-2017 not entered so beginning at lfcs midpoint " + hex(start_lfcs_new))
         start_lfcs = start_lfcs_new
     start_lfcs = endian4(start_lfcs)
-    init_command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+    if os_sys == 'Windows':
+        init_command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+    else:
+        init_command = "./bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     print(init_command)
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
@@ -310,7 +324,7 @@ def do_cpu():
     global process_count
     if len(sys.argv) == 3:
         process_count = int(sys.argv[2])
-        
+
     if which_computer_is_this >= number_of_computers:
         print("You can't assign an id # to a computer that doesn't exist")
         sys.exit(1)
@@ -343,7 +357,11 @@ def do_cpu():
             process_end = address_end
         start = process_begin
         size = process_end - process_begin
-        subprocess.call("start seedminer {0:08X} {1:09X}".format(start, size).split())
+        if os_sys == 'Windows':
+            subprocess.call("start seedminer {0:08X} {1:09X}".format(start, size).split(), shell=True)
+        else:
+            # Use job control on Unix-like OS's
+            subprocess.call("./seedminer {0:08X} {1:09X} &".format(start, size).split(), shell=True)
         print("Process: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
 
 
@@ -352,7 +370,10 @@ def do_gpu():
         buf = f.read()
     keyy = hexlify(buf[:16]).decode('ascii')
     id0 = hexlify(buf[16:32]).decode('ascii')
-    init_command = "bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
+    if os_sys == 'Windows':
+        init_command = "bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
+    else:
+        init_command = "./bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)

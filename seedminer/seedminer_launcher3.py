@@ -3,12 +3,17 @@ import os
 import struct
 import subprocess
 import sys
+import time
 import urllib.request
 from binascii import hexlify, unhexlify
 
 # don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count = 4
+# Note: Argument parsing will override the following two variables and multiply them by 2!
+# Otherwise, the following two variables will not be multiplied.
 offset_override = 0  # for gpu options, this allows starting brute-force at a user-defined offset
+max_msky_offset = 16384  # only for the do_gpu() function, this allows ending at a user-defined offset; 16384 should be the max though!
+force_reduced_work_size = False  # Set this variable to "True" (without the quotes) if you want to use less of your gpu while mining
 # -----------------------------------------------------------------------------------------------------------------
 # Don't edit below this line unless you have multiple computers brute-forcing - most of you won't need this feature
 # -----------------------------------------------------------------------------------------------------------------
@@ -98,12 +103,12 @@ def mii_gpu():
         enc = f.read()
     if len(enc) != 0x70:
         print("Error: input.bin is invalid size (likely QR -> input.bin conversion issue)")
-        sys.exit(0)
+        sys.exit(1)
     nonce = enc[:8] + b"\x00" * 4
     cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce)
     dec = cipher.decrypt(enc[8:0x60])
     nonce = nonce[:8]
-    final = dec[:12]+nonce+dec[12:]
+    final = dec[:12] + nonce + dec[12:]
 
     with open("output.bin", "wb") as f:
         f.write(final)
@@ -111,7 +116,7 @@ def mii_gpu():
         model = sys.argv[2].lower()
     else:
         print("Error: need to specify new|old movable.sed")
-        sys.exit(0)
+        sys.exit(1)
     model_str = b""
     start_lfcs_old = 0x0B000000 // 2
     start_lfcs_new = 0x05000000 // 2
@@ -154,9 +159,17 @@ def mii_gpu():
             print("Year 2014-2017 not entered so beginning at lfcs midpoint " + hex(start_lfcs_new))
         start_lfcs = start_lfcs_new
     start_lfcs = endian4(start_lfcs)
-    command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
-    print(command)
-    subprocess.call(command.split())
+    init_command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+    print(init_command)
+    if force_reduced_work_size is True:
+        command = "{} rws".format(init_command)
+        subprocess.call(command.split())
+    else:
+        command = "{} sws sm".format(init_command)
+        proc = subprocess.call(command.split())
+        if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
+            time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
+            subprocess.call("{} rws sm".format(init_command).split())
 
 
 def generate_part2():
@@ -190,13 +203,13 @@ def generate_part2():
     if noobtest in seed[0x10:0x30]:
         print("Error: ID0 has been left blank, please add an ID0")
         print("Ex: python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
-        sys.exit(0)
+        sys.exit(1)
     if noobtest[:4] in seed[:4]:
         print("Error: LFCS has been left blank, did you do a complete two-way friend code exchange before dumping friendlist?")
-        sys.exit(0)
+        sys.exit(1)
     if len(seed) != 0x1000:
         print("Error: movable_part1.sed is not 4KB")
-        sys.exit(0)
+        sys.exit(1)
         
     if seed[4:5] == b"\x02":
         print("New3DS msed")
@@ -206,7 +219,7 @@ def generate_part2():
         isnew = False
     else:
         print("Error: can't read u8 msed[4]")
-        sys.exit(0)
+        sys.exit(1)
 
     expand()
     print("LFCS      : " + hex(bytes2int(seed[0:4])))
@@ -273,7 +286,7 @@ def hash_clusterer():
     print("")
     if hashcount > 1:
         print("Too many ID0 dirs! ({})\nMove the ones your 3ds isn't using!".format(hashcount))
-        sys.exit(0)
+        sys.exit(1)
         
     if hashcount == 1:
         print("Hash added!")
@@ -300,13 +313,13 @@ def do_cpu():
         
     if which_computer_is_this >= number_of_computers:
         print("You can't assign an id # to a computer that doesn't exist")
-        sys.exit(0)
+        sys.exit(1)
 
-    max = 0x100000000
+    max_1 = 0x100000000
     address_begin = 0
-    address_end = max
+    address_end = max_1
 
-    address_space = max // number_of_computers
+    address_space = max_1 // number_of_computers
 
     for i in range(number_of_computers):
         if which_computer_is_this == i:
@@ -314,7 +327,7 @@ def do_cpu():
             address_end = (address_begin + address_space)
             print("This computer id: " + str(i))
     if which_computer_is_this == number_of_computers - 1:
-        address_end = max
+        address_end = max_1
 
     print("Overall starting msed2 address: " + hex(address_begin))
     print("Overall ending   msed2 address: " + hex(address_end))
@@ -339,9 +352,19 @@ def do_gpu():
         buf = f.read()
     keyy = hexlify(buf[:16]).decode('ascii')
     id0 = hexlify(buf[16:32]).decode('ascii')
-    command = "bfcl msky {0} {1} {2:08X}".format(keyy, id0, endian4(offset_override))
-    print(command)
-    subprocess.call(command.split())
+    init_command = "bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
+    print(init_command)
+    if force_reduced_work_size is True:
+        command = "{} rws".format(init_command)
+        proc = subprocess.call(command.split())
+    else:
+        command = "{} sws sm".format(init_command)
+        proc = subprocess.call(command.split())
+        if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
+            time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
+            command = "{} rws sm".format(init_command)
+            proc = subprocess.call(command.split())
+    return proc
 
 
 def download(url, dest):
@@ -368,13 +391,17 @@ def update_db():
 def error_print():
     print("\nCommand line error")
     print("Usage:")
-    print("python {} cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [ID0 hash] [year 3ds built]".format(sys.argv[0]))
+    print("python {} cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [starting gpu offset] [max gpu offset] [ID0 hash] [year 3ds built]".format(sys.argv[0]))
     print("Examples:")
+    print("python {} cpu".format(sys.argv[0]))
     print("python {} cpu 4".format(sys.argv[0]))
     print("python {} gpu".format(sys.argv[0]))
+    print("python {} gpu 0".format(sys.argv[0]))
+    print("python {} gpu 0 8192".format(sys.argv[0]))
     print("python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
     print("python {} mii new 2017".format(sys.argv[0]))
     print("python {} mii old 2011".format(sys.argv[0]))
+    print("python {} mii new".format(sys.argv[0]))
     print("python {} mii old".format(sys.argv[0]))
     print("python {} update-db".format(sys.argv[0]))
 
@@ -388,15 +415,24 @@ os.chdir(dname)
 
 if len(sys.argv) < 2 or len(sys.argv) > 4:
     error_print()
-    sys.exit(0)
+    sys.exit(1)
     
 if sys.argv[1].lower() == "gpu":
-    if len(sys.argv) == 3:
-        offset_override = int(sys.argv[2]) * 2
+    if len(sys.argv) == 3 or len(sys.argv) == 4:
+        try:
+            offset_override = int(sys.argv[2]) * 2
+        except ValueError:
+            print("Invalid parameter supplied!")
+            sys.exit(1)
+    if len(sys.argv) == 4:
+        try:
+            max_msky_offset = int(sys.argv[3]) * 2
+        except ValueError:
+            print("Invalid parameter supplied!")
+            sys.exit(1)
     print("GPU selected")
     generate_part2()
-    do_gpu()
-    sys.exit(0)
+    sys.exit(do_gpu())
 elif sys.argv[1].lower() == "cpu":
     print("CPU selected")
     generate_part2()
@@ -411,12 +447,11 @@ elif sys.argv[1].lower() == "mii":
     mii_gpu()
     generate_part2()
     offset_override = 0
-    do_gpu()
-    sys.exit(0)
+    sys.exit(do_gpu())
 elif sys.argv[1].lower() == "update-db":
     print("Update msed_data selected")
     update_db()
     sys.exit(0)
 else:
     error_print()
-    sys.exit(0)
+    sys.exit(1)

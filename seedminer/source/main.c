@@ -18,7 +18,7 @@ u8 sha256[0x20]={0};
 u8 ID0[0x10]={0};
 u8 part2[0x20]={0};
 u8 msed[0x140]={0};
-unsigned char keyy[0x10]={0};
+u32 keyy[0x10]={0};
 u32 save_offset=0;
 
 u32 check_finish(){
@@ -81,11 +81,11 @@ s32 bf_block(u32 offset, u64 start, u64 size){
 	printf("At msed2 address 0x%08"LL"X, size 0x%09"LL"X:\n", (unsigned long long) start, (unsigned long long) size);
 	
 	u32 original=keyy[3];
-	printf("Brute forcing msed3 offset %d (0x%08X)...\n", offset_converted, keyy[3]+offset_converted);
+	printf("Brute forcing msed3 offset %d (0x%08X)...\n\n", offset_converted, keyy[3]+offset_converted);
 	keyy[3]+=offset_converted;
 	for(u64 i=start;i<finish;i++){
 		keyy[2]=i;
-		SHA256(keyy, 0x10, sha256);
+		SHA256((unsigned char*) keyy, 0x10, sha256);
 		if(!memcmp(sha256, ID0, 0x10))return 0;
 	}
 	

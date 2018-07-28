@@ -1,12 +1,11 @@
+from binascii import hexlify, unhexlify
 import glob
 import os
-import platform
 import struct
 import subprocess
 import sys
 import time
 import urllib.request
-from binascii import hexlify, unhexlify
 
 # don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count = 4
@@ -37,7 +36,7 @@ ftune = []
 lfcs_new = []
 ftune_new = []
 err_correct = 0
-os_sys = platform.system()
+os_name = os.name
 
 
 def int16bytes(n):
@@ -86,10 +85,10 @@ def getmsed3estimate(n, isnew):
     else:
         fc = lfcs
         ft = ftune
-        
+
     fc_size = len(fc)
     ft_size = len(ft)
-    
+
     if fc_size != ft_size:
         return -1
 
@@ -102,7 +101,7 @@ def getmsed3estimate(n, isnew):
             ys = ((xs * yl) // xl) + y
             err_correct = ys
             return ((n // 5) - ys) | newbit
-            
+
     return ((n // 5) - ft[ft_size - 1]) | newbit
 
 
@@ -135,7 +134,7 @@ def mii_gpu():
     year = 0
     if len(sys.argv) == 4:
             year = int(sys.argv[3])
-        
+
     if model == "old":
         model_str = b"\x00\x00"
         if year == 2011:
@@ -155,7 +154,7 @@ def mii_gpu():
         else:
             print("Year 2011-2017 not entered so beginning at lfcs midpoint " + hex(start_lfcs_old))
         start_lfcs = start_lfcs_old
-        
+
     elif model == "new":
         model_str = b"\x02\x00"
         if year == 2014:
@@ -170,7 +169,7 @@ def mii_gpu():
             print("Year 2014-2017 not entered so beginning at lfcs midpoint " + hex(start_lfcs_new))
         start_lfcs = start_lfcs_new
     start_lfcs = endian4(start_lfcs)
-    if os_sys == 'Windows':
+    if os_name == 'nt':
         init_command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     else:
         init_command = "./bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
@@ -224,7 +223,7 @@ def generate_part2():
     if len(seed) != 0x1000:
         print("Error: movable_part1.sed is not 4KB")
         sys.exit(1)
-        
+
     if seed[4:5] == b"\x02":
         print("New3DS msed")
         isnew = True
@@ -243,6 +242,7 @@ def generate_part2():
 
     offset = 0x10
     hash_final = b""
+    i = None
     for i in range(64):
         try:
             hash_init = unhexlify(seed[offset:offset + 0x20])
@@ -252,7 +252,7 @@ def generate_part2():
         print("ID0 hash " + str(i) + ": " + hexlify(hash_single).decode('ascii'))
         hash_final += hash_single
         offset += 0x20
-        print("Hash total: " + str(i))
+    print("Hash total: " + str(i))
 
     part2 = seed[0:12] + int2bytes(msed3) + hash_final
 
@@ -272,7 +272,7 @@ def hash_clusterer():
         dirs = [sys.argv[2]]
     else:
         dirs = glob.glob("*")
-        
+
     try:
         with open("movable_part1.sed", "rb") as f:
             file = f.read()
@@ -287,30 +287,32 @@ def hash_clusterer():
         try:
             temp = str(i).encode("ascii")
             print(i, end='')
+            sys.stdout.flush()
             int(i, 16)
             if len(i) == 32 and temp not in file:
                 buf += temp
                 hashcount += 1
             else:
                 print(" -- improper ID0 length or already in file", end='')
+                sys.stdout.flush()
             print("")
         except:
             print(" -- not an ID0")
-        
+
     print("")
     if hashcount > 1:
         print("Too many ID0 dirs! ({})\nMove the ones your 3ds isn't using!".format(hashcount))
         sys.exit(1)
-        
+
     if hashcount == 1:
         print("Hash added!")
     else:
         print("No hashes added!")
         sys.exit(0)
-        
+
     with open("movable_part1.sed.backup", "wb") as f:
         f.write(file)
-    
+
     file = file[:0x10]
     pad_len = 0x1000 - len(file+buf)
     pad = b"\x00" * pad_len
@@ -345,11 +347,11 @@ def do_cpu():
 
     print("Overall starting msed2 address: " + hex(address_begin))
     print("Overall ending   msed2 address: " + hex(address_end))
-    print("")
 
     process_space = address_end - address_begin
     process_size = process_space // process_count
 
+    proc = None
     for i in range(process_count):
         process_begin = address_begin + (process_size * i)
         process_end = process_begin + process_size
@@ -357,12 +359,15 @@ def do_cpu():
             process_end = address_end
         start = process_begin
         size = process_end - process_begin
-        if os_sys == 'Windows':
-            subprocess.call("start seedminer {0:08X} {1:09X}".format(start, size).split(), shell=True)
+        print("\n\nProcess: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
+        time.sleep(1)  # For readability
+        if os_name == 'nt':
+            proc = subprocess.Popen("seedminer {0:08X} {1:09X}".format(start, size).split())
         else:
-            # Use job control on Unix-like OS's
-            subprocess.call("./seedminer {0:08X} {1:09X} &".format(start, size).split(), shell=True)
-        print("Process: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
+            proc = subprocess.Popen("./seedminer {0:08X} {1:09X}".format(start, size).split())
+        # To prevent processes from conflicting with one another; gives each process some time to display output
+        time.sleep(2)
+    proc.wait()
 
 
 def do_gpu():
@@ -370,7 +375,7 @@ def do_gpu():
         buf = f.read()
     keyy = hexlify(buf[:16]).decode('ascii')
     id0 = hexlify(buf[16:32]).decode('ascii')
-    if os_sys == 'Windows':
+    if os_name == 'nt':
         init_command = "bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     else:
         init_command = "./bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
@@ -437,7 +442,7 @@ os.chdir(dname)
 if len(sys.argv) < 2 or len(sys.argv) > 4:
     error_print()
     sys.exit(1)
-    
+
 if sys.argv[1].lower() == "gpu":
     if len(sys.argv) == 3 or len(sys.argv) == 4:
         try:

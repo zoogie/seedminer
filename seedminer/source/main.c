@@ -158,9 +158,6 @@ int main(int argc, char **argv)
 	fwrite(&seedtype, 1, 4, f);
 	fclose(f);
 	printf("\n%s dumped!\nJust keep it handy if you don't know what to do with it!\n", filename);
-	printf("Done!\n");
-	
-	getchar();
-
+	printf("Done!\n\n");
 	return 0;
 }

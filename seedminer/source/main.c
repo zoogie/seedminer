@@ -18,7 +18,7 @@ u8 sha256[0x20]={0};
 u8 ID0[0x10]={0};
 u8 part2[0x20]={0};
 u8 msed[0x140]={0};
-u32 keyy[0x10]={0};
+u32 keyy[4]={0};
 u32 save_offset=0;
 
 u32 check_finish(){

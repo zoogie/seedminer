@@ -34,7 +34,7 @@ u32 save_progress(u64 start, u64 size, u32 progress){
 	snprintf(savename,0xFF,"saves/save_%08"LL"X-%09"LL"X.bin", (unsigned long long) start, (unsigned long long) size);
 	FILE *f=fopen(savename,"wb+");
 	if(f){
-		printf("Saving progress to file %s ...\n\n", savename);
+		printf("\nSaving progress to file %s ...\n\n", savename);
 		fwrite(&progress, 1, 4, f);
 		fclose(f);
 	}

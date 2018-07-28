@@ -346,7 +346,7 @@ def do_cpu():
         address_end = max_1
 
     print("Overall starting msed2 address: " + hex(address_begin))
-    print("Overall ending   msed2 address: " + hex(address_end))
+    print("Overall ending   msed2 address: " + hex(address_end) + "\n")
 
     process_space = address_end - address_begin
     process_size = process_space // process_count
@@ -359,7 +359,7 @@ def do_cpu():
             process_end = address_end
         start = process_begin
         size = process_end - process_begin
-        print("\n\nProcess: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
+        print("\nProcess: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
         time.sleep(1)  # For readability
         if os_name == 'nt':
             proc = subprocess.Popen("seedminer {0:08X} {1:09X}".format(start, size).split())

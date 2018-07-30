@@ -10,7 +10,7 @@ import urllib.request
 # don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count = 4
 # -----------------------------------------------------------------------------------------------------------------
-# Note: Optional arguments parsing will override the following two variables and multiply them by 2!
+# Note: Optional argument parsing will override the following two variables and multiply them by 2!
 # If optional arguments are not provided, the following two variables will not be multiplied.
 # ---
 # for gpu options

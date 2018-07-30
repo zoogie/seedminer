@@ -249,7 +249,7 @@ def hash_clusterer():
         with open("movable_part1.sed", "rb") as f:
             file=f.read()
     except:
-        inp = ask_yes_no("movable_part1.sed not found, do you want to generate a new one?")
+        inp = ask_yes_no("movable_part1.sed not found, do you want to generate an empty one?")
         if(inp == True):
             print("don't forget to add an lfcs to it!\n")
             pause()
@@ -283,6 +283,7 @@ def hash_clusterer():
         print("Hash added!")
     else:
         print("No hashes added!")
+        pause()
         sys.exit(0)
         
     with open("movable_part1.sed.backup", "wb") as f:
@@ -443,7 +444,7 @@ if(len(sys.argv) == 1):
     print("Available options: ")
     print("1. CPU bruteforce")
     print("2. GPU bruteforce (normal)")
-    print("3. GPU bruteforce (restore from offset)")
+    print("3. GPU bruteforce (restore from offset) (Warning! Only use this mode if you want to restore a previous bruteforce!)")
     print("4. Mii bruteforce")
     print("Note: saves/lfcs and saves/lfcs_new will be automatically updated")
     inp = ask_list_input(4)

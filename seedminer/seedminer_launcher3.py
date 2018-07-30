@@ -10,8 +10,8 @@ import urllib.request
 # don't change this mid brute force - can be different amount multiple computers - powers of two recommended for even distribution of workload 1 2 4 8 etc.
 process_count = 4
 # -----------------------------------------------------------------------------------------------------------------
-# Note: Argument parsing will override the following two variables and multiply them by 2!
-# Otherwise, the following two variables will not be multiplied.
+# Note: Optional arguments parsing will override the following two variables and multiply them by 2!
+# If optional arguments are not provided, the following two variables will not be multiplied.
 # ---
 # for gpu options
 offset_override = 0  # this allows starting brute-force at a user-defined offset
@@ -351,7 +351,7 @@ def do_cpu():
     process_space = address_end - address_begin
     process_size = process_space // process_count
 
-    proc = None
+    multi_procs = []
     for i in range(process_count):
         process_begin = address_begin + (process_size * i)
         process_end = process_begin + process_size
@@ -359,15 +359,15 @@ def do_cpu():
             process_end = address_end
         start = process_begin
         size = process_end - process_begin
+        time.sleep(0.25)  # For readability and organization
         print("\nProcess: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
-        time.sleep(1)  # For readability
         if os_name == 'nt':
             proc = subprocess.Popen("seedminer {0:08X} {1:09X}".format(start, size).split())
         else:
             proc = subprocess.Popen("./seedminer {0:08X} {1:09X}".format(start, size).split())
-        # To prevent processes from conflicting with one another; gives each process some time to display output
-        time.sleep(2)
-    proc.wait()
+        multi_procs.append(proc)
+    for proc in multi_procs:
+        proc.wait()
 
 
 def do_gpu():

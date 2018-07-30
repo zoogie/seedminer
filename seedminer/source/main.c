@@ -159,5 +159,6 @@ int main(int argc, char **argv)
 	fclose(f);
 	printf("\n%s dumped!\nJust keep it handy if you don't know what to do with it!\n", filename);
 	printf("Done!\n\n");
+	printf("If applicable, any other seedminer processes will terminate shortly!\n\n");
 	return 0;
 }

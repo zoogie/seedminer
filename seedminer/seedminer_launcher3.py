@@ -349,6 +349,8 @@ def do_gpu():
         os.system(command)
     except KeyboardInterrupt:
         print("Bruteforcing aborted. If you're planning on resuming it, make sure to TAKE NOTE of the offset value above!")
+        pause()
+        sys.exit(0)
 
 def download(url, dest):
     try:

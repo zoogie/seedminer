@@ -150,7 +150,12 @@ def mii_gpu():
     start_lfcs=endian4(start_lfcs)
     command="bfcl lfcs %08X %s %s %08X" % (start_lfcs, model_str.encode('hex'), final[4:4+8].encode('hex'), endian4(offset_override))
     print(command)
-    os.system(command)
+    try:
+        os.system(command)
+    except KeyboardInterrupt:
+        print("Bruteforcing aborted. If you're planning on resuming it, make sure to TAKE NOTE of the offset value above!")
+        pause()
+        sys.exit(0)
 
 def generate_part2():
     global err_correct

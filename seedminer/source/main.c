@@ -39,7 +39,7 @@ u32 save_progress(u64 start, u64 size, u32 progress){
 		fclose(f);
 	}
 	else{
-		printf("Error: could not open %s\n", savename);
+		printf("\nError: could not open %s\n\n", savename);
 		return 1;
 	}
 	return 0;

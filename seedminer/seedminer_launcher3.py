@@ -382,6 +382,7 @@ def error_print():
     print("python %s mii old 2011" % (sys.argv[0]))
     print("python %s mii old" % (sys.argv[0]))
     print("python %s update-db" % (sys.argv[0]))
+    print("Running the script without any arguments will bring up a menu where you can select what to do")
     
 def ask_yes_no(msg):
     while True:
@@ -444,7 +445,7 @@ if(len(sys.argv) == 1):
     print("2. GPU bruteforce (normal)")
     print("3. GPU bruteforce (restore from offset)")
     print("4. Mii bruteforce")
-    print("Note: 
+    print("Note: saves/lfcs and saves/lfcs_new will be automatically updated")
     inp = ask_list_input(4)
     if(inp != 4):
         id0 = input("Enter the ID0: ")

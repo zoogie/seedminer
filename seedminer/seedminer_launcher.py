@@ -365,6 +365,7 @@ def error_print():
     print("python %s mii old 2011" % (sys.argv[0]))
     print("python %s mii old" % (sys.argv[0]))
     print("python %s update-db" % (sys.argv[0]))
+    print("Running the script without any arguments will bring up a menu where you can select what to do")
 #---------------------------------------------------------------------------
 #command handler
 #---------------------------------------------------------------------------

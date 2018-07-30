@@ -18,6 +18,7 @@ ftune=[]
 lfcs_new=[]
 ftune_new=[]
 err_correct=0
+id0 = None
 
 def int16bytes(n):
     return n.to_bytes(16, 'big')
@@ -86,6 +87,7 @@ def mii_gpu():
         enc=f.read()
     if(len(enc) != 0x70):
         print("Error: input.bin is invalid size (likely QR -> input.bin conversion issue)")
+        pause()
         sys.exit(0)
     nonce=enc[:8]+b"\x00"*4
     cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce )
@@ -99,6 +101,7 @@ def mii_gpu():
         model=sys.argv[2].lower()
     else:
         print("Error: need to specify new|old movable.sed")
+        pause()
         sys.exit(0)
     model_str=b""
     start_lfcs_old=0x0B000000//2
@@ -179,12 +182,15 @@ def generate_part2():
     if(noobtest in seed[0x10:0x30]):
         print("Error: ID0 has been left blank, please add an ID0")
         print("Ex: python %s id0 abcdef012345EXAMPLEdef0123456789" % (sys.argv[0]))
+        pause()
         sys.exit(0)
     if(noobtest[:4] in seed[:4]):
         print("Error: LFCS has been left blank, did you do a complete two-way friend code exchange before dumping friendlist?")
+        pause()
         sys.exit(0)
     if len(seed) != 0x1000:
         print("Error: movable_part1.sed is not 4KB")
+        pause()
         sys.exit(0)
         
     if seed[4:5]==b"\x02":
@@ -195,6 +201,7 @@ def generate_part2():
         isNew=False
     else:
         print("Error: can't read u8 msed[4]")
+        pause()
         sys.exit(0)
 
     expand()
@@ -232,6 +239,9 @@ def hash_clusterer():
     if(len(sys.argv)==3):
         dirs=[]
         dirs.append(sys.argv[2])
+    elif(id0 != None):
+        dirs=[]
+        dirs.append(id0)
     else:
         dirs=glob.glob("*")
         
@@ -239,22 +249,26 @@ def hash_clusterer():
         with open("movable_part1.sed", "rb") as f:
             file=f.read()
     except:
-        print("movable_part1.sed not found, generating a new one")
-        print("don't forget to add an lfcs to it!\n")
-        with open("movable_part1.sed", "wb") as f:
-            file=b"\x00"*0x1000
-            f.write(file)
+        inp = ask_yes_no("movable_part1.sed not found, do you want to generate a new one?")
+        if(inp == True):
+            print("don't forget to add an lfcs to it!\n")
+            pause()
+            with open("movable_part1.sed", "wb") as f:
+                file=b"\x00"*0x1000
+                f.write(file)
+        else:
+            sys.exit(0)
 
     for i in dirs:
         try:
             temp=str(i).encode("ascii")
             print(i,end='')
             int(i,16)
-            if(len(i)==32 and temp not in file):
+            if(len(i)==32): #Even if the ID0 is already in the file, it works too
                 buf+=temp
                 hashcount+=1
             else:
-                print(" -- improper ID0 length or already in file",end='')
+                print(" -- improper ID0 length",end='')
             print("")
         except:
             print(" -- not an ID0")
@@ -262,6 +276,7 @@ def hash_clusterer():
     print("")
     if(hashcount>1):
         print("Too many ID0 dirs! (%d)\nMove the ones your 3ds isn't using!" % (hashcount))
+        pause()
         sys.exit(0)
         
     if(hashcount==1):
@@ -288,6 +303,7 @@ def do_cpu():
         
     if(which_computer_is_this >= number_of_computers):
         print("You can't assign an id # to a computer that doesn't exist")
+        pause()
         sys.exit(0)
 
     MAX=0x100000000
@@ -328,7 +344,10 @@ def do_gpu():
     ID0=hexlify(buf[16:32]).decode('ascii')
     command="bfcl msky %s %s %08X" % (keyy,ID0, endian4(offset_override))
     print(command)
-    os.system(command)
+    try:
+        os.system(command)
+    except KeyboardInterrupt:
+        print("Bruteforcing aborted. If you're planning on resuming it, make sure to TAKE NOTE of the offset value above!")
 
 def download(url, dest):
     try:
@@ -353,15 +372,59 @@ def update_db():
 def error_print():
     print("\nCommand line error")
     print("Usage:")
-    print("python %s cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [ID0 hash] [year 3ds built]" % (sys.argv[0]))
+    print("python %s cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [ID0 hash] [year 3ds built] [continue from offset #]" % (sys.argv[0]))
     print("Examples:")
     print("python %s cpu 4" % (sys.argv[0]))
     print("python %s gpu" % (sys.argv[0]))
+    print("python %s gpu -12" % (sys.argv[0]))
     print("python %s id0 abcdef012345EXAMPLEdef0123456789" % (sys.argv[0]))
     print("python %s mii new 2017" % (sys.argv[0]))
     print("python %s mii old 2011" % (sys.argv[0]))
     print("python %s mii old" % (sys.argv[0]))
     print("python %s update-db" % (sys.argv[0]))
+    
+def ask_yes_no(msg):
+    while True:
+        inp = input(msg + " (y/n) ")
+        if (inp.lower() == "y"):
+            return True
+        elif (inp.lower() == "n"):
+            return False;
+            
+def ask_list_input(count):
+    while True:
+        try:
+            rang = range(1, count + 1)
+            inp = input("\nPlease select an option: ")
+            if(int(inp) in rang):
+                return int(inp)
+            else:
+                raise ValueError
+        except ValueError:
+            print("Please enter a valid number")
+            
+def pause():
+    input("Press any key to continue...")
+    
+def ask_for_deletion():
+    inp = ask_yes_no("Do you want to delete no longer needed files? ")
+    if(inp == True):
+        try:
+            os.remove("movable_part1.sed")
+            os.remove("movable_part1.sed.backup")
+            os.remove("movable_part2.sed")
+            os.remove("input.bin")
+        except FileNotFoundError:
+            print("", end="") #really stupid workaround
+        
+def ask_for_renaming():
+    inp = ask_yes_no("Do you want to rename the movable.sed file to contain the friend code?")
+    if(inp == True):
+        inp = input("Enter the friend code: ")
+        fc = ''.join([i for i in inp if i.isdigit()])
+        os.rename("movable.sed", "movable_" + fc + ".sed")
+
+        
 #---------------------------------------------------------------------------
 #command handler
 #---------------------------------------------------------------------------
@@ -369,14 +432,75 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-if(len(sys.argv) < 2 or len(sys.argv) > 4):
+
+
+if(len(sys.argv) > 4):
     error_print()
     sys.exit(0)
-    
+	
+if(len(sys.argv) == 1):
+    print("Available options: ")
+    print("1. CPU bruteforce")
+    print("2. GPU bruteforce (normal)")
+    print("3. GPU bruteforce (restore from offset)")
+    print("4. Mii bruteforce")
+    print("Note: 
+    inp = ask_list_input(4)
+    if(inp != 4):
+        id0 = input("Enter the ID0: ")
+    if(inp == 1):
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_cpu()
+    elif(inp == 2):
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_gpu()
+    elif(inp == 3):
+        while True:
+            try:
+                ofs = int(input("Which offset do you want to resume from? "))
+                if(ofs == 0):
+                    offset_override = 0
+                elif(ofs > 0):
+                    offset_override = ofs * 2 - 1
+                else:
+                    offset_override = abs(ofs) * 2
+                print("Bruteforcing will resume on offset %d" % ofs)
+                break
+            except ValueError:
+                print("Please enter a valid number")
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_gpu()
+    elif(inp == 4):
+        mii_gpu()
+        generate_part2()
+        offset_override=0
+        do_gpu()
+    ask_for_deletion()
+    ask_for_renaming()
+    sys.exit(0)
+        
 if(sys.argv[1].lower() == "gpu"):
-    if(len(sys.argv)==3):
-        offset_override = int(sys.argv[2]) * 2
     print("GPU selected")
+    if(len(sys.argv)==3):
+        try:
+            ofs = int(sys.argv[2])
+            if(ofs == 0):
+                offset_override = 0
+            elif(ofs > 0):
+                offset_override = ofs * 2 - 1
+            else:
+                offset_override = abs(ofs) * 2
+            print("Bruteforcing will resume on offset %d" % ofs)
+        except:
+            print("Error: the specified offset number isn't an integer")
+            pause()
+            sys.exit(0)
     generate_part2()
     do_gpu()
     sys.exit(0)

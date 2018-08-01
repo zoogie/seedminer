@@ -170,9 +170,9 @@ def mii_gpu():
         start_lfcs = start_lfcs_new
     start_lfcs = endian4(start_lfcs)
     if os_name == 'nt':
-        init_command = "bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+        init_command = "bfcl lfcs {:08X} {} {} {:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     else:
-        init_command = "./bfcl lfcs {0:08X} {1} {2} {3:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
+        init_command = "./bfcl lfcs {:08X} {} {} {:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     print(init_command)
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
@@ -362,9 +362,9 @@ def do_cpu():
         time.sleep(0.25)  # For readability and organization
         print("\nProcess: " + str(i) + " Start: " + hex(process_begin) + " Size: " + hex(size))
         if os_name == 'nt':
-            proc = subprocess.Popen("seedminer {0:08X} {1:09X}".format(start, size).split())
+            proc = subprocess.Popen("seedminer {:08X} {:09X}".format(start, size).split())
         else:
-            proc = subprocess.Popen("./seedminer {0:08X} {1:09X}".format(start, size).split())
+            proc = subprocess.Popen("./seedminer {:08X} {:09X}".format(start, size).split())
         multi_procs.append(proc)
     for proc in multi_procs:
         proc.wait()
@@ -376,9 +376,9 @@ def do_gpu():
     keyy = hexlify(buf[:16]).decode('ascii')
     id0 = hexlify(buf[16:32]).decode('ascii')
     if os_name == 'nt':
-        init_command = "bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
+        init_command = "bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     else:
-        init_command = "./bfcl msky {0} {1} {2:08X} {3:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
+        init_command = "./bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)

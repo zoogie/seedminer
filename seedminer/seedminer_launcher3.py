@@ -1,6 +1,8 @@
+# Seedminer vX.X.X
 from binascii import hexlify, unhexlify
 import glob
 import os
+import signal
 import struct
 import subprocess
 import sys
@@ -37,6 +39,13 @@ lfcs_new = []
 ftune_new = []
 err_correct = 0
 os_name = os.name
+
+
+def signal_handler(sig, frame):  # So KeyboardInterrupt exceptions don't appear
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def int16bytes(n):

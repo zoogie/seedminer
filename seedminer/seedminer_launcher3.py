@@ -46,7 +46,11 @@ year = 0
 
 def signal_handler(sig, frame):  # So KeyboardInterrupt exceptions don't appear
     sys.exit(0)
-
+    
+def bfcl_signal_handler(sig, frame): #Shows a message if the users interrupts bruteforcing
+    print("\nBruteforcing aborted by the user. If you want to resume it later, TAKE NOTE of the offset value shown above!")
+    pause()
+    sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -191,6 +195,9 @@ def mii_gpu():
     else:
         init_command = "./bfcl lfcs {:08X} {} {} {:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     print(init_command)
+    
+    signal.signal(signal.SIGINT, bfcl_signal_handler)
+    
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
         subprocess.call(command.split())
@@ -386,6 +393,8 @@ def do_cpu():
     process_space = address_end - address_begin
     process_size = process_space // process_count
 
+    signal.signal(signal.SIGINT, bfcl_signal_handler)
+    
     multi_procs = []
     for i in range(process_count):
         process_begin = address_begin + (process_size * i)
@@ -415,20 +424,19 @@ def do_gpu():
     else:
         init_command = "./bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
-    try:
-        if force_reduced_work_size is True:
-            command = "{} rws".format(init_command)
+    
+    signal.signal(signal.SIGINT, bfcl_signal_handler)
+    
+    if force_reduced_work_size is True:
+        command = "{} rws".format(init_command)
+        proc = subprocess.call(command.split())
+    else:
+        command = "{} sws sm".format(init_command)
+        proc = subprocess.call(command.split())
+        if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
+            time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
+            command = "{} rws sm".format(init_command)
             proc = subprocess.call(command.split())
-        else:
-            command = "{} sws sm".format(init_command)
-            proc = subprocess.call(command.split())
-            if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
-                time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
-                command = "{} rws sm".format(init_command)
-                proc = subprocess.call(command.split())
-    except KeyboardInterrupt:
-        print("Bruteforcing aborted by the user. If you're planning on resuming this later, TAKE NOTE of the offset value above!")
-        sys.exit(2)
     return proc
 
 
@@ -519,7 +527,7 @@ def pause(alt_msg = None):
    
 #Asks to delete no longer needed files
 def ask_for_deletion():
-    inp = ask_yes_no("Do you want to delete no longer needed files? ")
+    inp = ask_yes_no("\nDo you want to delete no longer needed files? ")
     if inp == True:
         try:
             os.remove("movable_part1.sed")

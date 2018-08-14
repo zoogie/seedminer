@@ -1,5 +1,6 @@
 # Seedminer vX.X.X
 from binascii import hexlify, unhexlify
+from textwrap import dedent
 import glob
 import os
 import signal
@@ -39,6 +40,8 @@ lfcs_new = []
 ftune_new = []
 err_correct = 0
 os_name = os.name
+id0 = None
+year = 0
 
 
 def signal_handler(sig, frame):  # So KeyboardInterrupt exceptions don't appear
@@ -115,6 +118,9 @@ def getmsed3estimate(n, isnew):
 
 
 def mii_gpu():
+    global model
+    global year
+
     from Cryptodome.Cipher import AES
 
     nk31 = 0x59FC817E6446EA6190347B20E9BDCE52
@@ -122,6 +128,7 @@ def mii_gpu():
         enc = f.read()
     if len(enc) != 0x70:
         print("Error: input.bin is invalid size (likely QR -> input.bin conversion issue)")
+        pause()
         sys.exit(1)
     nonce = enc[:8] + b"\x00" * 4
     cipher = AES.new(int16bytes(nk31), AES.MODE_CCM, nonce)
@@ -133,21 +140,22 @@ def mii_gpu():
         f.write(final)
     if len(sys.argv) >= 3:
         model = sys.argv[2].lower()
-    else:
+    elif len(sys.argv) != 1:
         print("Error: need to specify new|old movable.sed")
+        pause()
         sys.exit(1)
     model_str = b""
     start_lfcs_old = 0x0B000000 // 2
     start_lfcs_new = 0x05000000 // 2
     start_lfcs = 0
-    year = 0
     if len(sys.argv) == 4:
             year = int(sys.argv[3])
 
     if model == "old":
         model_str = b"\x00\x00"
         if year == 2011:
-            start_lfcs_old = 0x01000000
+            start_lfcs_ol
+            d = 0x01000000
         elif year == 2012:
             start_lfcs_old = 0x04000000
         elif year == 2013:
@@ -225,14 +233,16 @@ def generate_part2():
     if noobtest in seed[0x10:0x30]:
         print("Error: ID0 has been left blank, please add an ID0")
         print("Ex: python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
+        pause()
         sys.exit(1)
     if noobtest[:4] in seed[:4]:
         print("Error: LFCS has been left blank, did you do a complete two-way friend code exchange before dumping friendlist?")
+        pause()
         sys.exit(1)
     if len(seed) != 0x1000:
         print("Error: movable_part1.sed is not 4KB")
+        pause()
         sys.exit(1)
-
     if seed[4:5] == b"\x02":
         print("New3DS msed")
         isnew = True
@@ -241,6 +251,7 @@ def generate_part2():
         isnew = False
     else:
         print("Error: can't read u8 msed[4]")
+        pause()
         sys.exit(1)
 
     expand()
@@ -272,8 +283,26 @@ def generate_part2():
         f.write(part2)
     print("movable_part2.sed generation success")
 
+#Checks if an ID0 is valid, and returns True or False accordingly
+def is_id0_valid(id0):
+    try:
+        print(id0, end='')
+        sys.stdout.flush()
+        int(id0, 16)
+        if len(id0) == 32:
+            print(" -- valid ID0")
+            return True
+        else:
+            print(" -- improper ID0 length")
+            sys.stdout.flush()
+            return False
+    except:
+        print(" -- not an ID0")
+        return False
 
 def hash_clusterer():
+    global id0
+    
     buf = b""
     hashcount = 0
 
@@ -292,31 +321,27 @@ def hash_clusterer():
             file = b"\x00" * 0x1000
             f.write(file)
 
-    for i in dirs:
-        try:
-            temp = str(i).encode("ascii")
-            print(i, end='')
-            sys.stdout.flush()
-            int(i, 16)
-            if len(i) == 32 and temp not in file:
-                buf += temp
+    if id0 == None:
+        for i in dirs:
+            if is_id0_valid(i):
+                buf += str(i).encode("ascii")
                 hashcount += 1
-            else:
-                print(" -- improper ID0 length or already in file", end='')
-                sys.stdout.flush()
-            print("")
-        except:
-            print(" -- not an ID0")
+    else:
+        buf += str(id0).encode("ascii")
+        hashcount += 1
+        
+    print(id0)
 
-    print("")
     if hashcount > 1:
-        print("Too many ID0 dirs! ({})\nMove the ones your 3ds isn't using!".format(hashcount))
+        print("Too many ID0 dirs! ({})\nMove the ones your 3DS isn't using!".format(hashcount))
+        pause()
         sys.exit(1)
 
     if hashcount == 1:
         print("Hash added!")
     else:
         print("No hashes added!")
+        pause()
         sys.exit(0)
 
     with open("movable_part1.sed.backup", "wb") as f:
@@ -338,6 +363,7 @@ def do_cpu():
 
     if which_computer_is_this >= number_of_computers:
         print("You can't assign an id # to a computer that doesn't exist")
+        pause()
         sys.exit(1)
 
     max_1 = 0x100000000
@@ -389,16 +415,20 @@ def do_gpu():
     else:
         init_command = "./bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
-    if force_reduced_work_size is True:
-        command = "{} rws".format(init_command)
-        proc = subprocess.call(command.split())
-    else:
-        command = "{} sws sm".format(init_command)
-        proc = subprocess.call(command.split())
-        if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
-            time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
-            command = "{} rws sm".format(init_command)
+    try:
+        if force_reduced_work_size is True:
+            command = "{} rws".format(init_command)
             proc = subprocess.call(command.split())
+        else:
+            command = "{} sws sm".format(init_command)
+            proc = subprocess.call(command.split())
+            if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
+                time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
+                command = "{} rws sm".format(init_command)
+                proc = subprocess.call(command.split())
+    except KeyboardInterrupt:
+        print("Bruteforcing aborted by the user. If you're planning on resuming this later, TAKE NOTE of the offset value above!")
+        sys.exit(2)
     return proc
 
 
@@ -424,23 +454,194 @@ def update_db():
 
 
 def error_print():
-    print("\nCommand line error")
-    print("Usage:")
-    print("python {} cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [starting gpu offset] [max gpu offset] [ID0 hash] [year 3ds built]".format(sys.argv[0]))
-    print("Examples:")
-    print("python {} cpu".format(sys.argv[0]))
-    print("python {} cpu 4".format(sys.argv[0]))
-    print("python {} gpu".format(sys.argv[0]))
-    print("python {} gpu 0".format(sys.argv[0]))
-    print("python {} gpu 0 8192".format(sys.argv[0]))
-    print("python {} id0 abcdef012345EXAMPLEdef0123456789".format(sys.argv[0]))
-    print("python {} mii new 2017".format(sys.argv[0]))
-    print("python {} mii old 2011".format(sys.argv[0]))
-    print("python {} mii new".format(sys.argv[0]))
-    print("python {} mii old".format(sys.argv[0]))
-    print("python {} update-db".format(sys.argv[0]))
+    print(dedent("""
+    Command line error
+    Usage:
+    python {0} cpu|gpu|id0|mii old|mii new|update-db [# cpu processes] [starting gpu offset] [max gpu offset] [ID0 hash] [year 3ds built]
+    Examples:
+    python {0} cpu
+    python {0} cpu 4
+    python {0} gpu
+    python {0} gpu 0
+    python {0} gpu 0 8192
+    python {0} id0 abcdef012345EXAMPLEdef0123456789
+    python {0} mii new 2017
+    python {0} mii old 2011
+    python {0} mii new
+    python {0} mii old
+    python {0} update-db
+    
+    Starting the script without any arguments will bring up the mode selection menu instead.""".format(sys.argv[0])))
 
+###########USER INTERFACE RELATED VARIABLES###########
+##PREPARE, LOTS OF NEWLY DEFINED FUNCTIONS INCOMING!##
 
+#Clears the screen
+def clear_screen():
+    stupidworkaroundvariable = os.system("cls") if os.name == "nt" else print("\033c", end="")
+    del stupidworkaroundvariable
+    #This mess of a code is to support clearing the screen on both Windows and Unix
+    #The "stupidworkaroundvariable" is used to prevent the cls return code on the screen (without it a 0 would've been automatically printed after clearing the screen, which is kinda pointless)
+    #Thank you https://stackoverflow.com/a/23075152 and https://stackoverflow.com/a/2084628 , my solution uses a combination of both
+
+#Asks a simple yes/no questions, and returns True or False accordingly
+def ask_yes_no(msg):
+    inp = input(msg + " (y/n) ")
+    while True:
+        if inp.lower() == "y":
+            return True
+        elif inp.lower() == "n":
+            return False;
+        else:
+            inp = input("Please enter a valid option (y/n) ")
+
+#Asks to input a number from a list of choices
+def ask_list_input(count, allow_s):
+    rang = range(1, count + 1)
+    inp = input("\nPlease select an option: ")
+    while True:
+        if inp.lower() == "s":
+            return "s"
+        try:
+            if int(inp) in rang:
+                return int(inp)
+            else:
+                raise ValueError
+        except ValueError:
+            inp = input("Please select a valid option: ")
+            
+#"Press any key to continue" message
+def pause(alt_msg = None):
+    if alt_msg == None:
+        input("Press any key to continue...")
+    else:
+        input(alt_msg)
+   
+#Asks to delete no longer needed files
+def ask_for_deletion():
+    inp = ask_yes_no("Do you want to delete no longer needed files? ")
+    if inp == True:
+        try:
+            os.remove("movable_part1.sed")
+            os.remove("movable_part1.sed.backup")
+            os.remove("movable_part2.sed")
+            os.remove("input.bin")
+        except FileNotFoundError:
+            print("", end="") #really stupid workaround
+        
+#Asks to rename the movable.sed in order to contain the friend code
+def ask_for_renaming():
+    inp = ask_yes_no("Do you want to rename the movable.sed file to contain the friend code?")
+    if inp == True:
+        inp = input("Enter the friend code: ")
+        fc = ''.join([i for i in inp if i.isdigit()])
+        os.rename("movable.sed", "movable_" + fc + ".sed")
+        
+#Due to how bfcl's offset argument works, this is required so support negative numbers. Does NOT include non-integer input failsafe, so this should be wrapped in a try/except block
+def get_offset_arg(ofs):
+    global offset_override
+    ofs = int(ofs)
+    if ofs == 0:
+        offset_override = 0
+    elif ofs > 0:
+        offset_override = ofs * 2 - 1
+    else:
+        offset_override = abs(ofs) * 2
+    print("Bruteforcing will resume on offset {}".format(ofs))
+    
+#Shows the main menu
+def show_main_menu():
+    global id0
+    clear_screen()
+    #Protip about dedent: by doing like this print statement below, eg triple quotes without immediately going to a new line, the other lines will still show one unit of indent. On the other hand, immediately going to a new line after the quotes (like in show_gpu_options()) will make everything dedented.
+    print(dedent("""Available options:
+    1. GPU bruteforce (normal)
+    2. GPU bruteforce (with options)
+    3. CPU bruteforce
+    4. Mii bruteforce
+    Note: the LCFS databases will be automatically updated"""))
+    mode = ask_list_input(4, False)
+    while True:
+        inp = input("Enter the ID0: ")
+        if is_id0_valid(inp) == True:
+            id0 = inp
+            break;
+    if mode == 1:
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_gpu()
+    elif mode == 2:
+        show_gpu_options()
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_gpu()
+    elif mode == 3:
+        update_db()
+        hash_clusterer()
+        generate_part2()
+        do_cpu()
+    elif mode == 4:
+        global model
+        global year
+        inp = input("Which model is the 3DS? (old/new) ")
+        while True:
+            if inp.lower() == "old":
+                model = "old"
+                break
+            elif inp.lower() == "new":
+                model = "new"
+                break
+            else:
+                inp = input("Please enter a valid option (old/new): ")
+        while True:
+            inp = input("Which year was the 3DS built (if you're not sure/don't know, enter 0)? ")
+            try:
+                year = int(inp)
+                break
+            except ValueError:
+                inp = ("Please enter the year was the 3DS built (if you're not sure/don't know, enter 0): ")
+        mii_gpu()
+        generate_part2()
+        offset_override = 0
+        do_gpu()
+    ask_for_deletion()
+    ask_for_renaming()
+
+#Shows the GPU bruteforcing options if the corresponding "mode" is selected
+def show_gpu_options():
+    global force_reduced_work_size
+    global offset_override
+    ofs = 0
+    while True:
+        clear_screen()
+        print(dedent("""Available options (and their respective current status):
+        1. Enabled reduced work size: {} (default is False)
+        2. Starting offset: {} (Default is 0)
+        Type "s" when you're ready to start""".format(force_reduced_work_size, ofs)))
+        inp = ask_list_input(2, True)
+        if inp == 1:
+            force_reduced_work_size = ask_yes_no(dedent("""
+            Reduced work size allows to use less of your GPU while bruteforcing. This can be useful if the computer becomes unresponsive, but it will make the bruteforcing process slower.
+            Do you want to enable reduced work size?"""))
+
+        elif inp == 2:
+            print(dedent("""
+            This allows to resuming a previous bruteforcing job, by changing which offset to start bruteforcing at.
+            WARNING! ONLY use this is you're resuming a previous bruteforce, and ONLY if you know exactly where it stopped!
+            Don't use this to start bruteforcing at random offsets!"""))
+            print("Which offset do you want to resume from? ", end="")
+            while True:
+                ofs = input()
+                try:
+                    get_offset_arg(ofs)
+                    break
+                except ValueError:
+                    print("Please enter a valid number: ", end="")
+        elif inp == "s":
+            break
+    
 # ---------------------------------------------------------------------------
 # command handler
 # ---------------------------------------------------------------------------
@@ -448,22 +649,30 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-if len(sys.argv) < 2 or len(sys.argv) > 4:
+if len(sys.argv) > 4:
     error_print()
+    pause()
     sys.exit(1)
+	
+#If no arguments have been specified, the text-based menu will show up.
+if len(sys.argv) == 1:
+    show_main_menu()
+    sys.exit(0)
 
 if sys.argv[1].lower() == "gpu":
     if len(sys.argv) == 3 or len(sys.argv) == 4:
         try:
-            offset_override = int(sys.argv[2]) * 2
+            offset_override = get_offset_arg(sys.argv[2])
         except ValueError:
             print("Invalid parameter supplied!")
+            pause()
             sys.exit(1)
     if len(sys.argv) == 4:
         try:
             max_msky_offset = int(sys.argv[3]) * 2
         except ValueError:
             print("Invalid parameter supplied!")
+            pause()
             sys.exit(1)
     print("GPU selected")
     generate_part2()
@@ -489,4 +698,5 @@ elif sys.argv[1].lower() == "update-db":
     sys.exit(0)
 else:
     error_print()
+    pause()
     sys.exit(1)

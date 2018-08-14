@@ -195,9 +195,6 @@ def mii_gpu():
     else:
         init_command = "./bfcl lfcs {:08X} {} {} {:08X}".format(start_lfcs, hexlify(model_str).decode('ascii'), hexlify(final[4:4 + 8]).decode('ascii'), endian4(offset_override))
     print(init_command)
-    
-    signal.signal(signal.SIGINT, bfcl_signal_handler)
-    
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
         subprocess.call(command.split())
@@ -391,10 +388,7 @@ def do_cpu():
     print("Overall ending   msed2 address: " + hex(address_end) + "\n")
 
     process_space = address_end - address_begin
-    process_size = process_space // process_count
-
-    signal.signal(signal.SIGINT, bfcl_signal_handler)
-    
+    process_size = process_space // process_count    
     multi_procs = []
     for i in range(process_count):
         process_begin = address_begin + (process_size * i)
@@ -438,6 +432,8 @@ def do_gpu():
             command = "{} rws sm".format(init_command)
             proc = subprocess.call(command.split())
     return proc
+    
+    signal.signal(signal.SIGINT, signal_handler)
 
 
 def download(url, dest):

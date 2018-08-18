@@ -8,11 +8,17 @@
 #include <openssl/sha.h>
 #include "types.h"
 
+#ifdef _WIN32
+#define LL "I64"
+#else
+#define LL "ll"
+#endif
+
 u8 sha256[0x20]={0};
 u8 ID0[0x10]={0};
 u8 part2[0x20]={0};
 u8 msed[0x140]={0};
-u32 keyy[4]={0}; 
+u32 keyy[4]={0};
 u32 save_offset=0;
 
 u32 check_finish(){
@@ -25,15 +31,15 @@ u32 check_finish(){
 
 u32 save_progress(u64 start, u64 size, u32 progress){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08"LL"X-%09"LL"X.bin", (unsigned long long) start, (unsigned long long) size);
 	FILE *f=fopen(savename,"wb+");
 	if(f){
-		printf("Saving progress to file %s ...\n\n", savename);
+		printf("\nSaving progress to file %s ...\n\n", savename);
 		fwrite(&progress, 1, 4, f);
 		fclose(f);
 	}
 	else{
-		printf("Error: could not open %s\n", savename);
+		printf("\nError: could not open %s\n\n", savename);
 		return 1;
 	}
 	return 0;
@@ -41,11 +47,14 @@ u32 save_progress(u64 start, u64 size, u32 progress){
 
 u32 load_progress(u64 start, u64 size){
 	char savename[0x100]={0};
-	snprintf(savename,0xFF,"saves/save_%08I64X-%09I64X.bin", start, size);
+	snprintf(savename,0xFF,"saves/save_%08"LL"X-%09"LL"X.bin", (unsigned long long) start, (unsigned long long) size);
 	FILE *f=fopen(savename,"rb");
 	if(f){
 		printf("Loading %s ...\n", savename);
-		fread(&save_offset, 1, 4, f);
+		if (fread(&save_offset, 1, 4, f) != 4) {
+			fprintf(stderr, "error durring fread\n");
+			exit(-1);
+		}
 		fclose(f);
 		
 		s32 neg = save_offset&1 ? -1 : 1;
@@ -69,14 +78,14 @@ s32 bf_block(u32 offset, u64 start, u64 size){
 	
 	if(offset_converted+((s32)keyy[3]&0x7FFFFFFF) < 0) return -2; //oob check
 	
-	printf("At msed2 address 0x%08I64X, size 0x%09I64X:\n", start, size);
+	printf("At msed2 address 0x%08"LL"X, size 0x%09"LL"X:\n", (unsigned long long) start, (unsigned long long) size);
 	
 	u32 original=keyy[3];
-	printf("Brute forcing msed3 offset %d (0x%08X)...\n", offset_converted, keyy[3]+offset_converted);
+	printf("Brute forcing msed3 offset %d (0x%08X)...\n\n", offset_converted, keyy[3]+offset_converted);
 	keyy[3]+=offset_converted;
 	for(u64 i=start;i<finish;i++){
 		keyy[2]=i;
-		SHA256(keyy, 0x10, sha256);
+		SHA256((unsigned char*) keyy, 0x10, sha256);
 		if(!memcmp(sha256, ID0, 0x10))return 0;
 	}
 	
@@ -91,7 +100,11 @@ int main(int argc, char **argv)
 	int ret=1;
 	
 	if(argc!=3){
-		printf("seedminer.exe <start_offset> <size>\nNote that all values interpreted as hex\n");
+		#ifdef _WIN32
+		printf("seedminer <start_offset> <size>\nNote that all values interpreted as hex\n");
+		#else
+		printf("./seedminer <start_offset> <size>\nNote that all values interpreted as hex\n");
+		#endif
 		return 1;
 	}
 	
@@ -103,7 +116,10 @@ int main(int argc, char **argv)
 	FILE *f;
 	f = fopen("movable_part2.sed", "rb");
 	if(f==NULL)return 0;
-	fread(part2, 1, 0x20, f);
+	if (fread(part2, 1, 0x20, f) != 0x20) {
+		fprintf(stderr, "error durring fread\n");
+		exit(-1);
+	}
 	fclose(f);
 	
 	memcpy(keyy, part2, 0x10);
@@ -141,10 +157,8 @@ int main(int argc, char **argv)
 	fwrite(&error, 1, 4, f);
 	fwrite(&seedtype, 1, 4, f);
 	fclose(f);
-	printf("\n%s dumped!\nPlease share this^ and help improve seedminer for others\nYou benefited from others that shared theirs before!\nPass on the favor, please!!\n", filename);
-	printf("Done!\n");
-	
-	getchar();
-
+	printf("\n%s dumped!\nJust keep it handy if you don't know what to do with it!\n", filename);
+	printf("Done!\n\n");
+	printf("If applicable, any other seedminer processes will terminate shortly!\n\n");
 	return 0;
 }

@@ -528,6 +528,7 @@ def ask_for_deletion():
             os.remove("movable_part1.sed.backup")
             os.remove("movable_part2.sed")
             os.remove("input.bin")
+            os.remove("output.bin")
         except FileNotFoundError:
             print("", end="") #really stupid workaround
         

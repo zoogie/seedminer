@@ -417,8 +417,6 @@ def do_gpu():
         init_command = "./bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
     
-    signal.signal(signal.SIGINT, bfcl_signal_handler)
-    
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
         proc = subprocess.call(command.split())
@@ -528,7 +526,6 @@ def ask_for_deletion():
             os.remove("movable_part1.sed.backup")
             os.remove("movable_part2.sed")
             os.remove("input.bin")
-            os.remove("output.bin")
         except FileNotFoundError:
             print("", end="") #really stupid workaround
         
@@ -542,7 +539,6 @@ def ask_for_renaming():
         
 #Due to how bfcl's offset argument works, this is required so support negative numbers. Does NOT include non-integer input failsafe, so this should be wrapped in a try/except block
 def get_offset_arg(ofs):
-    global offset_override
     ofs = int(ofs)
     if ofs == 0:
         offset_override = 0
@@ -551,6 +547,7 @@ def get_offset_arg(ofs):
     else:
         offset_override = abs(ofs) * 2
     print("Bruteforcing will resume on offset {}".format(ofs))
+    return offset_override
     
 #Shows the main menu
 def show_main_menu():
@@ -572,12 +569,14 @@ def show_main_menu():
         update_db()
         hash_clusterer(id0)
         generate_part2()
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     elif mode == 2:
         show_gpu_options()
         update_db()
         hash_clusterer(id0)
         generate_part2()
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     elif mode == 3:
         update_db()
@@ -608,6 +607,7 @@ def show_main_menu():
         hash_clusterer(id0)
         generate_part2()
         offset_override = 0
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     ask_for_deletion()
     ask_for_renaming()
@@ -638,7 +638,8 @@ def show_gpu_options():
             while True:
                 ofs = input()
                 try:
-                    get_offset_arg(ofs)
+                    global offset_override
+                    offset_override = get_offset_arg(ofs)
                     break
                 except ValueError:
                     print("Please enter a valid number: ", end="")

@@ -638,7 +638,7 @@ def show_gpu_options():
             while True:
                 ofs = input()
                 try:
-                    global offset_override
+                    global offset_override #I'm not quite sure why it's needed here in particular
                     offset_override = get_offset_arg(ofs)
                     break
                 except ValueError:

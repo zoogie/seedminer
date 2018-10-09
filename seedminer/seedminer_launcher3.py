@@ -40,7 +40,6 @@ lfcs_new = []
 ftune_new = []
 err_correct = 0
 os_name = os.name
-id0 = None
 year = 0
 
 
@@ -121,10 +120,7 @@ def getmsed3estimate(n, isnew):
     return ((n // 5) - ft[ft_size - 1]) | newbit
 
 
-def mii_gpu():
-    global model
-    global year
-
+def mii_gpu(year = None, model = None):
     from Cryptodome.Cipher import AES
 
     nk31 = 0x59FC817E6446EA6190347B20E9BDCE52
@@ -144,6 +140,10 @@ def mii_gpu():
         f.write(final)
     if len(sys.argv) >= 3:
         model = sys.argv[2].lower()
+        if model != "old" and model != "new":
+            print("Error: need to specify new|old movable.sed")
+            pause()
+            sys.exit(1)
     elif len(sys.argv) != 1:
         print("Error: need to specify new|old movable.sed")
         pause()
@@ -304,9 +304,7 @@ def is_id0_valid(id0):
         print(" -- not an ID0")
         return False
 
-def hash_clusterer():
-    global id0
-    
+def hash_clusterer(id0 = None):
     buf = b""
     hashcount = 0
 
@@ -418,8 +416,6 @@ def do_gpu():
     else:
         init_command = "./bfcl msky {} {} {:08X} {:08X}".format(keyy, id0, endian4(offset_override), endian4(max_msky_offset))
     print(init_command)
-    
-    signal.signal(signal.SIGINT, bfcl_signal_handler)
     
     if force_reduced_work_size is True:
         command = "{} rws".format(init_command)
@@ -543,7 +539,6 @@ def ask_for_renaming():
         
 #Due to how bfcl's offset argument works, this is required so support negative numbers. Does NOT include non-integer input failsafe, so this should be wrapped in a try/except block
 def get_offset_arg(ofs):
-    global offset_override
     ofs = int(ofs)
     if ofs == 0:
         offset_override = 0
@@ -552,10 +547,10 @@ def get_offset_arg(ofs):
     else:
         offset_override = abs(ofs) * 2
     print("Bruteforcing will resume on offset {}".format(ofs))
+    return offset_override
     
 #Shows the main menu
 def show_main_menu():
-    global id0
     clear_screen()
     #Protip about dedent: by doing like this print statement below, eg triple quotes without immediately going to a new line, the other lines will still show one unit of indent. On the other hand, immediately going to a new line after the quotes (like in show_gpu_options()) will make everything dedented.
     print(dedent("""Available options:
@@ -572,18 +567,20 @@ def show_main_menu():
             break;
     if mode == 1:
         update_db()
-        hash_clusterer()
+        hash_clusterer(id0)
         generate_part2()
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     elif mode == 2:
         show_gpu_options()
         update_db()
-        hash_clusterer()
+        hash_clusterer(id0)
         generate_part2()
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     elif mode == 3:
         update_db()
-        hash_clusterer()
+        hash_clusterer(id0)
         generate_part2()
         do_cpu()
     elif mode == 4:
@@ -606,14 +603,16 @@ def show_main_menu():
                 break
             except ValueError:
                 inp = ("Please enter the year was the 3DS built (if you're not sure/don't know, enter 0): ")
-        mii_gpu()
+        mii_gpu(year, model)
+        hash_clusterer(id0)
         generate_part2()
         offset_override = 0
+        signal.signal(signal.SIGINT, bfcl_signal_handler)
         do_gpu()
     ask_for_deletion()
     ask_for_renaming()
 
-#Shows the GPU bruteforcing options if the corresponding "mode" is selected
+#Shows the GPU bruteforcing options if the corresponding option is selected
 def show_gpu_options():
     global force_reduced_work_size
     global offset_override
@@ -639,7 +638,8 @@ def show_gpu_options():
             while True:
                 ofs = input()
                 try:
-                    get_offset_arg(ofs)
+                    global offset_override #I'm not quite sure why it's needed here in particular
+                    offset_override = get_offset_arg(ofs)
                     break
                 except ValueError:
                     print("Please enter a valid number: ", end="")

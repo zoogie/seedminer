@@ -114,7 +114,7 @@ def getmsed3estimate(n, isnew):
     return ((n // 5) - ft[ft_size - 1]) | newbit
 
 
-def mii_gpu():
+def mii_gpu(year = 0, model = None):
     from Cryptodome.Cipher import AES
 
     nk31 = 0x59FC817E6446EA6190347B20E9BDCE52
@@ -140,7 +140,7 @@ def mii_gpu():
     start_lfcs_old = 0x0B000000 // 2
     start_lfcs_new = 0x05000000 // 2
     start_lfcs = 0
-    year = 0
+    
     if len(sys.argv) == 4:
             year = int(sys.argv[3])
 
@@ -273,7 +273,7 @@ def generate_part2():
     print("movable_part2.sed generation success")
 
 
-def hash_clusterer():
+def hash_clusterer(id0 = None):
     buf = b""
     hashcount = 0
 
@@ -292,31 +292,27 @@ def hash_clusterer():
             file = b"\x00" * 0x1000
             f.write(file)
 
-    for i in dirs:
-        try:
-            temp = str(i).encode("ascii")
-            print(i, end='')
-            sys.stdout.flush()
-            int(i, 16)
-            if len(i) == 32 and temp not in file:
-                buf += temp
+    if id0 == None:
+        for i in dirs:
+            if is_id0_valid(i):
+                buf += str(i).encode("ascii")
                 hashcount += 1
-            else:
-                print(" -- improper ID0 length or already in file", end='')
-                sys.stdout.flush()
-            print("")
-        except:
-            print(" -- not an ID0")
+    else:
+        buf += str(id0).encode("ascii")
+        hashcount += 1
+        
+    print(id0)
 
-    print("")
     if hashcount > 1:
-        print("Too many ID0 dirs! ({})\nMove the ones your 3ds isn't using!".format(hashcount))
+        print("Too many ID0 dirs! ({})\nMove the ones your 3DS isn't using!".format(hashcount))
+        pause()
         sys.exit(1)
 
     if hashcount == 1:
         print("Hash added!")
     else:
         print("No hashes added!")
+        pause()
         sys.exit(0)
 
     with open("movable_part1.sed.backup", "wb") as f:
@@ -450,45 +446,47 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-if len(sys.argv) < 2 or len(sys.argv) > 4:
-    error_print()
-    sys.exit(1)
-
-if sys.argv[1].lower() == "gpu":
-    if len(sys.argv) == 3 or len(sys.argv) == 4:
-        try:
-            offset_override = int(sys.argv[2]) * 2
-        except ValueError:
-            print("Invalid parameter supplied!")
-            sys.exit(1)
-    if len(sys.argv) == 4:
-        try:
-            max_msky_offset = int(sys.argv[3]) * 2
-        except ValueError:
-            print("Invalid parameter supplied!")
-            sys.exit(1)
-    print("GPU selected")
-    generate_part2()
-    sys.exit(do_gpu())
-elif sys.argv[1].lower() == "cpu":
-    print("CPU selected")
-    generate_part2()
-    do_cpu()
-    sys.exit(0)
-elif sys.argv[1].lower() == "id0":
-    print("ID0 selected")
-    hash_clusterer()
-    sys.exit(0)
-elif sys.argv[1].lower() == "mii":
-    print("MII selected")
-    mii_gpu()
-    generate_part2()
-    offset_override = 0
-    sys.exit(do_gpu())
-elif sys.argv[1].lower() == "update-db":
-    print("Update msed_data selected")
-    update_db()
-    sys.exit(0)
-else:
-    error_print()
-    sys.exit(1)
+#Here the "__name__" == "__main__" part is needed in order to avoid the script from printing the error messages and exiting when imported from the other script
+if "__name__" == "__main__":
+    if len(sys.argv) < 2 or len(sys.argv) > 4:
+        error_print()
+        sys.exit(1)
+    
+    if sys.argv[1].lower() == "gpu":
+        if len(sys.argv) == 3 or len(sys.argv) == 4:
+            try:
+                offset_override = int(sys.argv[2]) * 2
+            except ValueError:
+                print("Invalid parameter supplied!")
+                sys.exit(1)
+        if len(sys.argv) == 4:
+            try:
+                max_msky_offset = int(sys.argv[3]) * 2
+            except ValueError:
+                print("Invalid parameter supplied!")
+                sys.exit(1)
+        print("GPU selected")
+        generate_part2()
+        sys.exit(do_gpu())
+    elif sys.argv[1].lower() == "cpu":
+        print("CPU selected")
+        generate_part2()
+        do_cpu()
+        sys.exit(0)
+    elif sys.argv[1].lower() == "id0":
+        print("ID0 selected")
+        hash_clusterer()
+        sys.exit(0)
+    elif sys.argv[1].lower() == "mii":
+        print("MII selected")
+        mii_gpu()
+        generate_part2()
+        offset_override = 0
+        sys.exit(do_gpu())
+    elif sys.argv[1].lower() == "update-db":
+        print("Update msed_data selected")
+        update_db()
+        sys.exit(0)
+    else:
+        error_print()
+        sys.exit(1)

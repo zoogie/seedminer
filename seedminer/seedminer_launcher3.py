@@ -272,6 +272,21 @@ def generate_part2():
         f.write(part2)
     print("movable_part2.sed generation success")
 
+def is_id0_valid(id0):
+    try:
+        print(id0, end='')
+        sys.stdout.flush()
+        int(id0, 16)
+        if len(id0) == 32:
+            print(" -- valid ID0")
+            return True
+        else:
+            print(" -- improper ID0 length")
+            sys.stdout.flush()
+            return False
+    except:
+        print(" -- not an ID0")
+        return False
 
 def hash_clusterer(id0 = None):
     buf = b""
@@ -447,7 +462,7 @@ dname = os.path.dirname(abspath)
 os.chdir(dname)
 
 #Here the "__name__" == "__main__" part is needed in order to avoid the script from printing the error messages and exiting when imported from the other script
-if "__name__" == "__main__":
+if __name__ == "__main__":
     if len(sys.argv) < 2 or len(sys.argv) > 4:
         error_print()
         sys.exit(1)

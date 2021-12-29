@@ -187,11 +187,11 @@ def mii_gpu(year = 0, model = None):
         command = "{} rws".format(init_command)
         subprocess.call(command.split())
     else:
-        command = "{} sws sm".format(init_command)
+        command = "{} sws".format(init_command)
         proc = subprocess.call(command.split())
         if proc == 251 or proc == 4294967291:  # Help wanted for a better way of catching an exit code of '-5'
             time.sleep(3)  # Just wait a few seconds so we don't burn out our graphics card
-            subprocess.call("{} rws sm".format(init_command).split())
+            subprocess.call("{} rws".format(init_command).split())
 
 
 def generate_part2():
